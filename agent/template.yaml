@@ -35,7 +35,7 @@ Parameters:
     AllowedPattern: '^(https://.+)?$'
   ProgramId:
     Type: String
-    Default: PrfSec1111111111111111111111111111111111111
+    Default: HCYkSp64qdMRjiCbauEzPhx9VtNGB6fp5NvKdCRb8tjj
     AllowedPattern: '^[1-9A-HJ-NP-Za-km-z]{32,44}$'
   UsdcMint:
     Type: String

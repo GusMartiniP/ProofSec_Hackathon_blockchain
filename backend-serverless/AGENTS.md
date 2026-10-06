@@ -119,8 +119,9 @@ optional CloudTrail (`EnableCloudTrail`), `Rules` that refuse dev values in prod
 ## 8. Open findings owned here
 
 PS-05, PS-07–PS-11, PS-13 and PS-20–PS-31 (backend portions) are fixed in code. Still open:
-the first real `sam validate --lint` / `sam build` / deploy (PS-17) and per-IP rate limiting
-(backlog). The backend unit suite passed 72/72 on 2026-10-06.
+deployment/integration in a real AWS dev account and per-IP rate limiting (backlog). The first
+real `sam validate --lint` / `sam build` passed, and the backend unit suite passed 72/72, on
+2026-10-06.
 
 ## 9. Pre-deploy checklist
 

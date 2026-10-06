@@ -34,7 +34,7 @@ Parameters:
     Description: Campo "Chain ID" das mensagens Sign-In With Solana.
   ProgramId:
     Type: String
-    Default: PrfSec1111111111111111111111111111111111111
+    Default: HCYkSp64qdMRjiCbauEzPhx9VtNGB6fp5NvKdCRb8tjj
     AllowedPattern: '^[1-9A-HJ-NP-Za-km-z]{32,44}$'
     Description: Endereco do programa ProofSec (saida do anchor deploy).
   SiwsDomains:

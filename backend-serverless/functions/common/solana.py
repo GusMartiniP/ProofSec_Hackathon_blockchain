@@ -23,7 +23,7 @@ RPC_URLS = [
     )
     if u
 ]
-PROGRAM_ID = os.environ.get("PROGRAM_ID", "PrfSec1111111111111111111111111111111111111")
+PROGRAM_ID = os.environ.get("PROGRAM_ID", "HCYkSp64qdMRjiCbauEzPhx9VtNGB6fp5NvKdCRb8tjj")
 RPC_TIMEOUT = 10
 
 JOB_DISCRIMINATOR = hashlib.sha256(b"account:JobAccount").digest()[:8]
