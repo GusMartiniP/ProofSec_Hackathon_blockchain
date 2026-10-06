@@ -1,0 +1,28 @@
+# Stack OPCIONAL do executor do agente (Lambda agendada). Implante depois da stack
+# do backend e copie os Outputs dela para os parâmetros abaixo.
+#
+#   cd agent
+#   npm install
+#   sam build
+#   sam deploy --no-execute-changeset     # revisão
+#   sam deploy                            # executa após confirmar
+#
+# Parar o agente sem apagar nada:  sam deploy --parameter-overrides ... ScheduleState=DISABLED
+version = 0.1
+
+[default.global.parameters]
+stack_name = "proofsec-dev-agent-executor"
+
+[default.build.parameters]
+cached = true
+
+[default.validate.parameters]
+lint = true
+
+[default.deploy.parameters]
+capabilities = "CAPABILITY_IAM"
+confirm_changeset = true
+fail_on_empty_changeset = false
+resolve_s3 = true
+parameter_overrides = "Stage=\"dev\" ApiUrl=\"COLE-O-ApiEndpoint\" AlertsTopicArn=\"COLE-O-AlertsTopicArn\" ScheduleState=\"DISABLED\""
+tags = "Project=\"proofsec\" Environment=\"dev\" ManagedBy=\"sam\" Owner=\"engineering\" Component=\"agent\""

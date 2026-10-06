@@ -1,0 +1,42 @@
+# Configuração do SAM CLI (ADR-002). `sam deploy` mostra o changeset e pede
+# confirmação antes de executar (confirm_changeset = true).
+#
+#   sam validate --lint
+#   sam build
+#   sam deploy --no-execute-changeset     # revisão ("plan"), permitido em dev
+#   sam deploy                            # executa após confirmar o changeset
+#   sam deploy --config-env prod          # prod: exige aprovação humana (AGENTS.md §5)
+#
+# Segredos NÃO entram aqui: ficam no SSM Parameter Store (docs/runbook.md).
+version = 0.1
+
+[default.global.parameters]
+stack_name = "proofsec-dev"
+
+[default.build.parameters]
+cached = true
+parallel = true
+
+[default.validate.parameters]
+lint = true
+
+[default.deploy.parameters]
+capabilities = "CAPABILITY_IAM"
+confirm_changeset = true
+fail_on_empty_changeset = false
+resolve_s3 = true
+# region = "us-east-1"   # sem isto, vale a região do perfil da AWS CLI
+parameter_overrides = "Stage=\"dev\""
+tags = "Project=\"proofsec\" Environment=\"dev\" ManagedBy=\"sam\" Owner=\"engineering\""
+
+[prod.global.parameters]
+stack_name = "proofsec-prod"
+
+[prod.deploy.parameters]
+capabilities = "CAPABILITY_IAM"
+confirm_changeset = true
+resolve_s3 = true
+# Perfil AWS endurecido, ainda exclusivamente em Solana devnet. Preencha todos os
+# placeholders antes de gerar o changeset; as Rules recusam valores inseguros.
+parameter_overrides = "Stage=\"prod\" AllowedOrigin=\"https://SEU-DOMINIO\" SiwsDomains=\"SEU-DOMINIO\" AlertEmail=\"SEU-EMAIL\" SolanaRpcUrl=\"https://SEU-RPC-DEVNET\" SolanaChainId=\"devnet\" ProgramId=\"SUBSTITUA-PELO-PROGRAM-ID-DEVNET\""
+tags = "Project=\"proofsec\" Environment=\"prod\" ManagedBy=\"sam\" Owner=\"engineering\""

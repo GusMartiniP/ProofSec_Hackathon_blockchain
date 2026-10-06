@@ -1,0 +1,12 @@
+{
+  "jobId": "abc123def456",
+  "clientWallet": "Fz8Hn1VnFQ2oVx7pQ7bY3mQjS1k9yq6bA2dZtCw5XeRu",
+  "scopeDocument": "{\"budgetUsdc\":350.0,\"client\":\"Fz8Hn1VnFQ2oVx7pQ7bY3mQjS1k9yq6bA2dZtCw5XeRu\",\"deadlineDays\":7,\"jobId\":\"abc123def456\",\"reviewHours\":72.0,\"rulesOfEngagement\":[\"Testar somente os ativos listados no escopo.\",\"Proibido DoS/DDoS, engenharia social e acesso a dados reais de clientes além do mínimo para PoC.\",\"Reportar vulnerabilidades críticas imediatamente ao cliente pelo canal combinado.\",\"Não divulgar achados publicamente sem autorização por escrito do cliente.\"],\"source\":\"manual\",\"targets\":[\"api.x.com\",\"app.x.com/login\"],\"testPlan\":[],\"title\":\"Pentest de API\",\"version\":1}",
+  "scopeHash": "11205560fc9bfd6fe39ac1c11b615c480873c8bd7d72dedaa797564b54b595e9",
+  "amountBase": 350000000,
+  "deadlineDays": 7,
+  "reviewHours": "72.0",
+  "budgetUsdc": "350.0",
+  "title": "Pentest de API",
+  "status": "DRAFT"
+}

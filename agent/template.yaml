@@ -1,0 +1,234 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Transform: AWS::Serverless-2016-10-31
+Description: >
+  ProofSec - executor do agente de IA ("maos") como Lambda agendada (ADR-012). Stack
+  separada e opcional: a chave do agente fica no SSM e so este role pode le-la. O limite
+  real de gasto e a AgentPolicy on-chain (INV-2).
+
+# Pre-requisitos (docs/runbook.md):
+#   - stack do backend implantada (ApiUrl e AlertsTopicArn saem dos Outputs dela);
+#   - SecureString /proofsec/<stage>/agent-keypair  (JSON de 64 numeros, como agent-keypair.json)
+#   - SecureString /proofsec/<stage>/agent-api-key  (a mesma do backend)
+#   - Node.js 22 e esbuild (devDependency de agent/) para o `sam build`.
+
+Parameters:
+  Stage:
+    Type: String
+    Default: dev
+    AllowedValues: [dev, staging, prod]
+  ApiUrl:
+    Type: String
+    AllowedPattern: '^https://.+$'
+    Description: Output ApiEndpoint da stack do backend.
+  AlertsTopicArn:
+    Type: String
+    Default: ''
+    AllowedPattern: '^(arn:aws[a-z-]*:sns:[a-z0-9-]+:[0-9]{12}:[A-Za-z0-9_-]+)?$'
+    Description: Output AlertsTopicArn da stack do backend. Vazio = sem alarmes.
+  SolanaRpcUrl:
+    Type: String
+    Default: https://api.devnet.solana.com
+    AllowedPattern: '^https://.+$'
+  SolanaRpcUrlFallback:
+    Type: String
+    Default: ''
+    AllowedPattern: '^(https://.+)?$'
+  ProgramId:
+    Type: String
+    Default: PrfSec1111111111111111111111111111111111111
+    AllowedPattern: '^[1-9A-HJ-NP-Za-km-z]{32,44}$'
+  UsdcMint:
+    Type: String
+    Default: ''
+    AllowedPattern: '^([1-9A-HJ-NP-Za-km-z]{32,44})?$'
+    Description: So necessario se a config on-chain aceitar qualquer mint (allowed_mint = default).
+  Cluster:
+    Type: String
+    Default: devnet
+    AllowedValues: [devnet]
+    Description: Usado apenas nos links do explorer nos logs.
+  AllowedOwners:
+    Type: String
+    Default: ''
+    AllowedPattern: '^([1-9A-HJ-NP-Za-km-z]{32,44}(,[1-9A-HJ-NP-Za-km-z]{32,44})*)?$'
+    Description: >
+      Empresas (pubkeys separadas por virgula) para as quais o executor pode abrir escrow (PS-39).
+      Obrigatorio fora do dev: sem lista, qualquer carteira com AgentPolicy apontando para a chave do
+      agente faz o executor gastar o SOL dele em rent.
+  ScheduleExpression:
+    Type: String
+    Default: rate(1 minute)
+  ScheduleState:
+    Type: String
+    Default: DISABLED
+    AllowedValues: [ENABLED, DISABLED]
+    Description: Kill switch do executor. Habilite só após configurar segredos e AgentPolicy.
+  LogRetentionDays:
+    Type: Number
+    Default: 14
+    AllowedValues: [7, 14, 30, 90, 180, 365]
+
+Rules:
+  NonDevNeedsAllowedOwners:
+    RuleCondition: !Not [!Equals [!Ref Stage, dev]]
+    Assertions:
+      - Assert: !Not [!Equals [!Ref AllowedOwners, '']]
+        AssertDescription: Fora de dev, defina AllowedOwners (empresas que o executor pode financiar).
+  ProdNeedsAlerts:
+    RuleCondition: !Equals [!Ref Stage, prod]
+    Assertions:
+      - Assert: !Not [!Equals [!Ref AlertsTopicArn, '']]
+        AssertDescription: Em prod, o executor precisa publicar alarmes (AlertsTopicArn).
+
+Conditions:
+  HasAlertsTopic: !Not [!Equals [!Ref AlertsTopicArn, '']]
+  HasUsdcMint: !Not [!Equals [!Ref UsdcMint, '']]
+
+Resources:
+  ExecutorLogGroup:
+    Type: AWS::Logs::LogGroup
+    Properties:
+      LogGroupName: !Sub "/proofsec/${Stage}/agent-executor"
+      RetentionInDays: !Ref LogRetentionDays
+
+  AgentExecutorFunction:
+    Type: AWS::Serverless::Function
+    # Bundle CommonJS com extensao .cjs: o runtime sempre o carrega como CJS, mesmo
+    # que exista um package.json com "type": "module" (o de agent/ tem).
+    # @aws-sdk/client-ssm ja vem no runtime nodejs22.x.
+    Metadata:
+      BuildMethod: esbuild
+      BuildProperties:
+        Format: cjs
+        OutExtension: ['.js=.cjs']
+        Target: es2022
+        Sourcemap: true
+        EntryPoints: [lambda.ts]
+        External: ['@aws-sdk/client-ssm']
+    Properties:
+      CodeUri: ./
+      # O handler usa o nome logico do modulo sem extensao; o runtime resolve o
+      # lambda.cjs emitido pelo esbuild e o carrega como CommonJS.
+      Handler: lambda.handler
+      Runtime: nodejs22.x
+      Architectures: [arm64]
+      # Termina antes da proxima rodada agendada
+      Timeout: 50
+      MemorySize: 512
+      LoggingConfig: { LogGroup: !Ref ExecutorLogGroup }
+      Tags:
+        Component: agent
+      Environment:
+        Variables:
+          NODE_OPTIONS: --enable-source-maps
+          API_URL: !Ref ApiUrl
+          SOLANA_RPC_URL: !Ref SolanaRpcUrl
+          SOLANA_RPC_URL_FALLBACK: !Ref SolanaRpcUrlFallback
+          PROGRAM_ID: !Ref ProgramId
+          USDC_MINT: !If [HasUsdcMint, !Ref UsdcMint, !Ref AWS::NoValue]
+          ALLOWED_OWNERS: !Ref AllowedOwners
+          CLUSTER: !Ref Cluster
+          AGENT_KEYPAIR_PARAM: !Sub "/proofsec/${Stage}/agent-keypair"
+          AGENT_API_KEY_PARAM: !Sub "/proofsec/${Stage}/agent-api-key"
+      Policies:
+        - Version: '2012-10-17'
+          Statement:
+            - Effect: Allow
+              Action: ssm:GetParameter
+              Resource:
+                - !Sub "arn:${AWS::Partition}:ssm:${AWS::Region}:${AWS::AccountId}:parameter/proofsec/${Stage}/agent-keypair"
+                - !Sub "arn:${AWS::Partition}:ssm:${AWS::Region}:${AWS::AccountId}:parameter/proofsec/${Stage}/agent-api-key"
+      # Sem retentativas: a proxima rodada agendada ja tenta de novo
+      EventInvokeConfig:
+        MaximumRetryAttempts: 0
+        MaximumEventAgeInSeconds: 60
+      Events:
+        Schedule:
+          Type: ScheduleV2
+          Properties:
+            Name: !Sub "proofsec-${Stage}-agent-executor"
+            ScheduleExpression: !Ref ScheduleExpression
+            State: !Ref ScheduleState
+            RetryPolicy:
+              MaximumRetryAttempts: 0
+              MaximumEventAgeInSeconds: 60
+
+  ProposalRejectedMetricFilter:
+    Type: AWS::Logs::MetricFilter
+    Properties:
+      LogGroupName: !Ref ExecutorLogGroup
+      FilterPattern: '{ $.event = "proposal_rejected" }'
+      MetricTransformations:
+        - MetricNamespace: !Sub "ProofSec/${Stage}"
+          MetricName: AgentProposalRejected
+          MetricValue: '1'
+          DefaultValue: 0
+
+  LowBalanceMetricFilter:
+    Type: AWS::Logs::MetricFilter
+    Properties:
+      LogGroupName: !Ref ExecutorLogGroup
+      FilterPattern: '{ $.event = "agent_low_balance" }'
+      MetricTransformations:
+        - MetricNamespace: !Sub "ProofSec/${Stage}"
+          MetricName: AgentLowBalance
+          MetricValue: '1'
+          DefaultValue: 0
+
+  ExecutorErrorsAlarm:
+    Type: AWS::CloudWatch::Alarm
+    Condition: HasAlertsTopic
+    Properties:
+      AlarmDescription: Executor do agente falhando (RPC, API ou segredo indisponivel).
+      Namespace: AWS/Lambda
+      MetricName: Errors
+      Dimensions:
+        - { Name: FunctionName, Value: !Ref AgentExecutorFunction }
+      Statistic: Sum
+      Period: 900
+      EvaluationPeriods: 1
+      Threshold: 3
+      ComparisonOperator: GreaterThanOrEqualToThreshold
+      TreatMissingData: notBreaching
+      AlarmActions: [!Ref AlertsTopicArn]
+
+  ProposalRejectedAlarm:
+    Type: AWS::CloudWatch::Alarm
+    Condition: HasAlertsTopic
+    DependsOn: ProposalRejectedMetricFilter
+    Properties:
+      AlarmDescription: Proposta do agente recusada pela politica on-chain; foi para revisao humana.
+      Namespace: !Sub "ProofSec/${Stage}"
+      MetricName: AgentProposalRejected
+      Statistic: Sum
+      Period: 300
+      EvaluationPeriods: 1
+      Threshold: 1
+      ComparisonOperator: GreaterThanOrEqualToThreshold
+      TreatMissingData: notBreaching
+      AlarmActions: [!Ref AlertsTopicArn]
+
+  LowBalanceAlarm:
+    Type: AWS::CloudWatch::Alarm
+    Condition: HasAlertsTopic
+    DependsOn: LowBalanceMetricFilter
+    Properties:
+      AlarmDescription: Carteira do agente com pouco SOL para rent e taxas.
+      Namespace: !Sub "ProofSec/${Stage}"
+      MetricName: AgentLowBalance
+      Statistic: Sum
+      Period: 3600
+      EvaluationPeriods: 1
+      Threshold: 1
+      ComparisonOperator: GreaterThanOrEqualToThreshold
+      TreatMissingData: notBreaching
+      AlarmActions: [!Ref AlertsTopicArn]
+
+Outputs:
+  ExecutorFunctionName:
+    Value: !Ref AgentExecutorFunction
+  ExecutorLogGroupName:
+    Value: !Ref ExecutorLogGroup
+  KeypairParameter:
+    Description: SecureString com a chave do agente (crie antes do primeiro uso)
+    Value: !Sub "/proofsec/${Stage}/agent-keypair"

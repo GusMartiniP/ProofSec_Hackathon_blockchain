@@ -1,0 +1,3 @@
+# Só para rodar os testes locais (o pacote da Lambda não tem dependências além do boto3 do runtime)
+cryptography>=42
+pyyaml>=6

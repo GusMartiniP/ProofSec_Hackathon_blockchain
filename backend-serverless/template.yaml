@@ -1,0 +1,1249 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Transform: AWS::Serverless-2016-10-31
+Description: >
+  ProofSec - backend serverless: indexador on-chain, login SIWS, evidencias cifradas no S3
+  e cerebro do agente de IA. A Solana e a fonte da verdade (INV-1). Nenhuma funcao desta
+  stack guarda chave de carteira (INV-2); o executor do agente fica em agent/template.yaml.
+
+# Segredos NAO passam por este template (PS-07). Crie antes do primeiro uso, como
+# SecureString no SSM Parameter Store (ver docs/runbook.md):
+#   /proofsec/<stage>/jwt-secret         (obrigatorio, >= 32 caracteres)
+#   /proofsec/<stage>/agent-api-key      (obrigatorio para o executor do agente)
+#   /proofsec/<stage>/anthropic-api-key  (opcional, so com EnableLlm=true)
+
+Parameters:
+  Stage:
+    Type: String
+    Default: dev
+    AllowedValues: [dev, staging, prod]
+    Description: Ambiente. Tambem define o prefixo dos parametros SSM (/proofsec/<stage>/).
+  SolanaRpcUrl:
+    Type: String
+    Default: https://api.devnet.solana.com
+    AllowedPattern: '^https://.+$'
+    Description: RPC principal. Prefira um RPC dedicado (Helius/Triton); o publico tem rate limit.
+  SolanaRpcUrlFallback:
+    Type: String
+    Default: ''
+    AllowedPattern: '^(https://.+)?$'
+    Description: RPC secundario, usado em timeout/429/5xx do principal (PS-13). Vazio = sem fallback.
+  SolanaChainId:
+    Type: String
+    Default: devnet
+    AllowedValues: [devnet]
+    Description: Campo "Chain ID" das mensagens Sign-In With Solana.
+  ProgramId:
+    Type: String
+    Default: PrfSec1111111111111111111111111111111111111
+    AllowedPattern: '^[1-9A-HJ-NP-Za-km-z]{32,44}$'
+    Description: Endereco do programa ProofSec (saida do anchor deploy).
+  SiwsDomains:
+    Type: CommaDelimitedList
+    Default: localhost:3000
+    Description: Dominios (host[:porta]) aceitos no login SIWS, separados por virgula.
+  AllowedOrigin:
+    Type: String
+    Default: '*'
+    Description: Origem do frontend para CORS (ex. https://app.exemplo.com). '*' so em dev.
+  CompanyWallet:
+    Type: String
+    Default: ''
+    AllowedPattern: '^([1-9A-HJ-NP-Za-km-z]{32,44})?$'
+    Description: Carteira dona dos alertas do GuardDuty/Security Hub. Vazio = sem agente por eventos.
+  EnableLlm:
+    Type: String
+    Default: 'false'
+    AllowedValues: ['true', 'false']
+    Description: Usa a Claude API para redigir escopos (chave em /proofsec/<stage>/anthropic-api-key).
+  LlmModel:
+    Type: String
+    Default: claude-sonnet-4-5
+    Description: Modelo usado quando EnableLlm=true.
+  MaxAgentSpendingLimitUsdc:
+    Type: Number
+    Default: 500
+    MinValue: 0
+    Description: Teto da proposta autonoma (off-chain). O limite que vale e a AgentPolicy on-chain.
+  ProposeQuotaPerHour:
+    Type: Number
+    Default: 10
+    MinValue: 1
+    Description: Alertas simulados (POST /agent/propose) por carteira por hora (PS-08).
+  AlertEmail:
+    Type: String
+    Default: ''
+    Description: E-mail que recebe os alertas (SNS) e o aviso de orcamento. Vazio = sem e-mail.
+  MonthlyBudgetUsd:
+    Type: Number
+    Default: 20
+    MinValue: 1
+    Description: Orcamento mensal da conta (so e criado com AlertEmail).
+  LogRetentionDays:
+    Type: Number
+    Default: 14
+    AllowedValues: [7, 14, 30, 90, 180, 365]
+  EnableCloudTrail:
+    Type: String
+    Default: 'false'
+    AllowedValues: ['true', 'false']
+    Description: Cria uma trilha do CloudTrail com bucket proprio (retencao longa de auditoria).
+
+Rules:
+  NonDevHardening:
+    RuleCondition: !Not [!Equals [!Ref Stage, dev]]
+    Assertions:
+      - Assert: !Not [!Equals [!Ref AllowedOrigin, '*']]
+        AssertDescription: Fora de dev, AllowedOrigin precisa ser a origem exata do frontend.
+      - Assert:
+          Fn::Not:
+            - Fn::Contains: [!Ref SiwsDomains, 'localhost:3000']
+        AssertDescription: Fora de dev, SiwsDomains nao pode aceitar localhost.
+      - Assert: !Not [!Equals [!Ref AlertEmail, '']]
+        AssertDescription: Fora de dev, defina AlertEmail para receber os alertas.
+      - Assert: !Not [!Equals [!Ref ProgramId, 'PrfSec1111111111111111111111111111111111111']]
+        AssertDescription: Fora de dev, ProgramId nao pode usar o placeholder do repositorio.
+
+Conditions:
+  HasCompanyWallet: !Not [!Equals [!Ref CompanyWallet, '']]
+  UseLlm: !Equals [!Ref EnableLlm, 'true']
+  HasAlertEmail: !Not [!Equals [!Ref AlertEmail, '']]
+  CreateCloudTrail: !Equals [!Ref EnableCloudTrail, 'true']
+  IsDevStage: !Equals [!Ref Stage, dev]
+  DemoEventsEnabled: !And [!Condition HasCompanyWallet, !Condition IsDevStage]
+
+Globals:
+  Function:
+    Runtime: python3.12
+    Architectures: [arm64]
+    Timeout: 15
+    MemorySize: 256
+    CodeUri: functions/
+    # Sem segredos aqui (PS-07): cada funcao recebe so o NOME do parametro de que precisa.
+    Environment:
+      Variables:
+        STAGE: !Ref Stage
+        JOBS_TABLE: !Ref JobsTable
+        USERS_TABLE: !Ref UsersTable
+        NONCES_TABLE: !Ref NoncesTable
+        REPORTS_BUCKET: !Sub "proofsec-reports-${Stage}-${AWS::AccountId}-${AWS::Region}"
+        SOLANA_RPC_URL: !Ref SolanaRpcUrl
+        SOLANA_RPC_URL_FALLBACK: !Ref SolanaRpcUrlFallback
+        PROGRAM_ID: !Ref ProgramId
+        ALLOWED_ORIGIN: !Ref AllowedOrigin
+        ALERT_TOPIC_ARN: !Ref AlertsTopic
+    Tags:
+      Component: api
+
+Resources:
+  # ==========================================================================
+  # Dados
+  # ==========================================================================
+  JobsTable:
+    Type: AWS::DynamoDB::Table
+    DeletionPolicy: Retain
+    UpdateReplacePolicy: Retain
+    Properties:
+      BillingMode: PAY_PER_REQUEST
+      PointInTimeRecoverySpecification: { PointInTimeRecoveryEnabled: true }
+      AttributeDefinitions:
+        - { AttributeName: jobId, AttributeType: S }
+        - { AttributeName: status, AttributeType: S }
+        - { AttributeName: clientWallet, AttributeType: S }
+        - { AttributeName: researcherWallet, AttributeType: S }
+      KeySchema:
+        - { AttributeName: jobId, KeyType: HASH }
+      GlobalSecondaryIndexes:
+        - IndexName: StatusIndex
+          KeySchema: [{ AttributeName: status, KeyType: HASH }]
+          Projection: { ProjectionType: ALL }
+        - IndexName: ClientIndex
+          KeySchema: [{ AttributeName: clientWallet, KeyType: HASH }]
+          Projection: { ProjectionType: ALL }
+        - IndexName: ResearcherIndex
+          KeySchema: [{ AttributeName: researcherWallet, KeyType: HASH }]
+          Projection: { ProjectionType: ALL }
+      Tags:
+        - { Key: Component, Value: data }
+
+  # Chaves publicas de criptografia + metadados internos ("meta#<nome>")
+  UsersTable:
+    Type: AWS::DynamoDB::Table
+    DeletionPolicy: Retain
+    UpdateReplacePolicy: Retain
+    Properties:
+      BillingMode: PAY_PER_REQUEST
+      PointInTimeRecoverySpecification: { PointInTimeRecoveryEnabled: true }
+      AttributeDefinitions:
+        - { AttributeName: wallet, AttributeType: S }
+      KeySchema:
+        - { AttributeName: wallet, KeyType: HASH }
+      Tags:
+        - { Key: Component, Value: data }
+
+  # Nonces de login: um item por nonce, com TTL, consumidos de forma atomica (PS-09)
+  NoncesTable:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      BillingMode: PAY_PER_REQUEST
+      AttributeDefinitions:
+        - { AttributeName: nonce, AttributeType: S }
+      KeySchema:
+        - { AttributeName: nonce, KeyType: HASH }
+      TimeToLiveSpecification:
+        AttributeName: expiresAt
+        Enabled: true
+      Tags:
+        - { Key: Component, Value: data }
+
+  # Evidencias: blobs ja cifrados no navegador (INV-6). O nome e fixo (via !Sub) porque
+  # as politicas das funcoes nao podem referenciar o bucket (dependencia circular com a
+  # notificacao do S3).
+  ReportsBucket:
+    Type: AWS::S3::Bucket
+    DeletionPolicy: Retain
+    UpdateReplacePolicy: Retain
+    Properties:
+      BucketName: !Sub "proofsec-reports-${Stage}-${AWS::AccountId}-${AWS::Region}"
+      BucketEncryption:
+        ServerSideEncryptionConfiguration:
+          - ServerSideEncryptionByDefault: { SSEAlgorithm: AES256 }
+      PublicAccessBlockConfiguration:
+        BlockPublicAcls: true
+        BlockPublicPolicy: true
+        IgnorePublicAcls: true
+        RestrictPublicBuckets: true
+      OwnershipControls:
+        Rules:
+          - ObjectOwnership: BucketOwnerEnforced
+      VersioningConfiguration: { Status: Enabled }
+      LifecycleConfiguration:
+        Rules:
+          - Id: expire-noncurrent-versions
+            Status: Enabled
+            NoncurrentVersionExpiration: { NoncurrentDays: 30 }
+          - Id: abort-incomplete-uploads
+            Status: Enabled
+            AbortIncompleteMultipartUpload: { DaysAfterInitiation: 1 }
+          - Id: remove-expired-delete-markers
+            Status: Enabled
+            ExpiredObjectDeleteMarker: true
+      CorsConfiguration:
+        CorsRules:
+          - AllowedHeaders: ['Content-Type', 'x-amz-checksum-sha256']
+            AllowedMethods: [GET, PUT]
+            AllowedOrigins: [!Ref AllowedOrigin]
+            MaxAge: 3000
+      Tags:
+        - { Key: Component, Value: data }
+
+  ReportsBucketPolicy:
+    Type: AWS::S3::BucketPolicy
+    Properties:
+      Bucket: !Ref ReportsBucket
+      PolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Sid: DenyInsecureTransport
+            Effect: Deny
+            Principal: '*'
+            Action: 's3:*'
+            Resource:
+              - !GetAtt ReportsBucket.Arn
+              - !Sub "${ReportsBucket.Arn}/*"
+            Condition:
+              Bool: { 'aws:SecureTransport': 'false' }
+
+  # ==========================================================================
+  # Observabilidade e resiliencia (PS-11)
+  # ==========================================================================
+  AppLogGroup:
+    Type: AWS::Logs::LogGroup
+    Properties:
+      LogGroupName: !Sub "/proofsec/${Stage}/app"
+      RetentionInDays: !Ref LogRetentionDays
+
+  ApiAccessLogGroup:
+    Type: AWS::Logs::LogGroup
+    Properties:
+      LogGroupName: !Sub "/proofsec/${Stage}/api-access"
+      RetentionInDays: !Ref LogRetentionDays
+
+  AlertsTopic:
+    Type: AWS::SNS::Topic
+    Properties:
+      TopicName: !Sub "proofsec-${Stage}-alerts"
+      Tags:
+        - { Key: Component, Value: ops }
+
+  AlertsEmailSubscription:
+    Type: AWS::SNS::Subscription
+    Condition: HasAlertEmail
+    Properties:
+      TopicArn: !Ref AlertsTopic
+      Protocol: email
+      Endpoint: !Ref AlertEmail
+
+  # Falhas de invocacoes assincronas (S3 -> verify, EventBridge -> agente)
+  AsyncDlq:
+    Type: AWS::SQS::Queue
+    Properties:
+      QueueName: !Sub "proofsec-${Stage}-async-dlq"
+      MessageRetentionPeriod: 1209600
+      SqsManagedSseEnabled: true
+      Tags:
+        - { Key: Component, Value: ops }
+
+  # ==========================================================================
+  # HTTP API + Lambda authorizer (SIWS -> JWT)
+  # ==========================================================================
+  ProofSecApi:
+    Type: AWS::Serverless::HttpApi
+    Properties:
+      Name: !Sub "proofsec-${Stage}-api"
+      CorsConfiguration:
+        AllowMethods: [GET, POST, PUT, OPTIONS]
+        AllowHeaders: [Authorization, Content-Type, x-agent-key]
+        AllowOrigins: [!Ref AllowedOrigin]
+        MaxAge: 600
+      # Throttling do stage (PS-08). Os limites sao globais por rota, nao por IP:
+      # limite por cliente exige CloudFront + WAF (backlog, ver security-review).
+      DefaultRouteSettings:
+        ThrottlingBurstLimit: 100
+        ThrottlingRateLimit: 50
+      RouteSettings:
+        "POST /auth/nonce": { ThrottlingBurstLimit: 20, ThrottlingRateLimit: 10 }
+        "POST /auth/verify": { ThrottlingBurstLimit: 20, ThrottlingRateLimit: 10 }
+        "POST /agent/propose": { ThrottlingBurstLimit: 3, ThrottlingRateLimit: 1 }
+        "POST /jobs/{jobId}/sync": { ThrottlingBurstLimit: 20, ThrottlingRateLimit: 10 }
+        "POST /jobs/{jobId}/apply": { ThrottlingBurstLimit: 10, ThrottlingRateLimit: 5 }
+        "POST /evidence/upload-url": { ThrottlingBurstLimit: 10, ThrottlingRateLimit: 5 }
+        "GET /agent/proposals": { ThrottlingBurstLimit: 5, ThrottlingRateLimit: 2 }
+        "POST /agent/proposals/{jobId}/executed": { ThrottlingBurstLimit: 10, ThrottlingRateLimit: 5 }
+        "POST /agent/proposals/{jobId}/rejected": { ThrottlingBurstLimit: 10, ThrottlingRateLimit: 5 }
+      AccessLogSettings:
+        DestinationArn: !GetAtt ApiAccessLogGroup.Arn
+        Format: '{"requestId":"$context.requestId","ip":"$context.identity.sourceIp","time":"$context.requestTime","routeKey":"$context.routeKey","status":"$context.status","latencyMs":"$context.responseLatency","authorizerError":"$context.authorizer.error","integrationError":"$context.integrationErrorMessage"}'
+      Auth:
+        Authorizers:
+          WalletAuthorizer:
+            FunctionArn: !GetAtt AuthorizerFunction.Arn
+            AuthorizerPayloadFormatVersion: '2.0'
+            EnableSimpleResponses: true
+            Identity:
+              Headers: [Authorization]
+              ReauthorizeEvery: 300
+      Tags:
+        Component: api
+
+  AuthorizerFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      Handler: auth.authorizer
+      Timeout: 5
+      LoggingConfig: { LogGroup: !Ref AppLogGroup }
+      Environment:
+        Variables:
+          JWT_SECRET_PARAM: !Sub "/proofsec/${Stage}/jwt-secret"
+      Policies:
+        - Version: '2012-10-17'
+          Statement:
+            - Effect: Allow
+              Action: ssm:GetParameter
+              Resource: !Sub "arn:${AWS::Partition}:ssm:${AWS::Region}:${AWS::AccountId}:parameter/proofsec/${Stage}/jwt-secret"
+
+  AuthNonceFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      Handler: auth.nonce
+      LoggingConfig: { LogGroup: !Ref AppLogGroup }
+      Environment:
+        Variables:
+          SIWS_DOMAINS: !Join [',', !Ref SiwsDomains]
+          SOLANA_CHAIN_ID: !Ref SolanaChainId
+      Policies:
+        - Version: '2012-10-17'
+          Statement:
+            - Effect: Allow
+              Action: dynamodb:PutItem
+              Resource: !GetAtt NoncesTable.Arn
+      Events:
+        Api:
+          Type: HttpApi
+          Properties:
+            ApiId: !Ref ProofSecApi
+            Path: /auth/nonce
+            Method: POST
+
+  AuthVerifyFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      Handler: auth.verify_signature
+      LoggingConfig: { LogGroup: !Ref AppLogGroup }
+      Environment:
+        Variables:
+          JWT_SECRET_PARAM: !Sub "/proofsec/${Stage}/jwt-secret"
+      Policies:
+        - Version: '2012-10-17'
+          Statement:
+            - Effect: Allow
+              Action: [dynamodb:GetItem, dynamodb:DeleteItem]
+              Resource: !GetAtt NoncesTable.Arn
+            - Effect: Allow
+              Action: ssm:GetParameter
+              Resource: !Sub "arn:${AWS::Partition}:ssm:${AWS::Region}:${AWS::AccountId}:parameter/proofsec/${Stage}/jwt-secret"
+      Events:
+        Api:
+          Type: HttpApi
+          Properties:
+            ApiId: !Ref ProofSecApi
+            Path: /auth/verify
+            Method: POST
+
+  # ==========================================================================
+  # Jobs
+  # ==========================================================================
+  ListJobsFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      Handler: jobs.list_jobs
+      LoggingConfig: { LogGroup: !Ref AppLogGroup }
+      Policies:
+        - Version: '2012-10-17'
+          Statement:
+            - Effect: Allow
+              Action: dynamodb:Query
+              Resource: !Sub "${JobsTable.Arn}/index/*"
+      Events:
+        Api:
+          Type: HttpApi
+          Properties:
+            ApiId: !Ref ProofSecApi
+            Path: /jobs
+            Method: GET
+
+  MyJobsFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      Handler: jobs.my_jobs
+      LoggingConfig: { LogGroup: !Ref AppLogGroup }
+      Policies:
+        - Version: '2012-10-17'
+          Statement:
+            - Effect: Allow
+              Action: dynamodb:Query
+              Resource: !Sub "${JobsTable.Arn}/index/*"
+      Events:
+        Api:
+          Type: HttpApi
+          Properties:
+            ApiId: !Ref ProofSecApi
+            Path: /jobs/mine
+            Method: GET
+            Auth: { Authorizer: WalletAuthorizer }
+
+  GetJobFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      Handler: jobs.get_job
+      LoggingConfig: { LogGroup: !Ref AppLogGroup }
+      Policies:
+        - Version: '2012-10-17'
+          Statement:
+            - Effect: Allow
+              Action: dynamodb:GetItem
+              Resource: !GetAtt JobsTable.Arn
+      Events:
+        Api:
+          Type: HttpApi
+          Properties:
+            ApiId: !Ref ProofSecApi
+            Path: /jobs/{jobId}
+            Method: GET
+
+  CreateJobFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      Handler: jobs.create_job
+      LoggingConfig: { LogGroup: !Ref AppLogGroup }
+      Policies:
+        - Version: '2012-10-17'
+          Statement:
+            - Effect: Allow
+              Action: dynamodb:PutItem
+              Resource: !GetAtt JobsTable.Arn
+            # Cota de rascunhos por dia (PS-40/PS-43)
+            - Effect: Allow
+              Action: dynamodb:Query
+              Resource: !Sub "${JobsTable.Arn}/index/ClientIndex"
+      Events:
+        Api:
+          Type: HttpApi
+          Properties:
+            ApiId: !Ref ProofSecApi
+            Path: /jobs
+            Method: POST
+            Auth: { Authorizer: WalletAuthorizer }
+
+  ApplyJobFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      Handler: jobs.apply
+      LoggingConfig: { LogGroup: !Ref AppLogGroup }
+      Policies:
+        - Version: '2012-10-17'
+          Statement:
+            - Effect: Allow
+              Action: [dynamodb:GetItem, dynamodb:UpdateItem]
+              Resource: !GetAtt JobsTable.Arn
+      Events:
+        Api:
+          Type: HttpApi
+          Properties:
+            ApiId: !Ref ProofSecApi
+            Path: /jobs/{jobId}/apply
+            Method: POST
+            Auth: { Authorizer: WalletAuthorizer }
+
+  SyncJobFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      Handler: jobs.sync
+      Timeout: 25
+      LoggingConfig: { LogGroup: !Ref AppLogGroup }
+      Policies:
+        - Version: '2012-10-17'
+          Statement:
+            - Effect: Allow
+              Action: [dynamodb:GetItem, dynamodb:PutItem]
+              Resource: !GetAtt JobsTable.Arn
+            - Effect: Allow
+              Action: sns:Publish
+              Resource: !Ref AlertsTopic
+      Events:
+        Api:
+          Type: HttpApi
+          Properties:
+            ApiId: !Ref ProofSecApi
+            Path: /jobs/{jobId}/sync
+            Method: POST
+
+  # Espelha a chain no DynamoDB e vigia a conta Config (alerta em mudanca)
+  IndexerFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      Handler: indexer.handler
+      Timeout: 55
+      LoggingConfig: { LogGroup: !Ref AppLogGroup }
+      Tags:
+        Component: indexer
+      Policies:
+        - Version: '2012-10-17'
+          Statement:
+            - Effect: Allow
+              Action: [dynamodb:GetItem, dynamodb:PutItem]
+              Resource: !GetAtt JobsTable.Arn
+            - Effect: Allow
+              Action: [dynamodb:GetItem, dynamodb:PutItem]
+              Resource: !GetAtt UsersTable.Arn
+              Condition:
+                ForAllValues:StringLike:
+                  dynamodb:LeadingKeys: ['meta#*']
+            - Effect: Allow
+              Action: sns:Publish
+              Resource: !Ref AlertsTopic
+      # Roda a cada minuto: sem retentativas (a proxima rodada ja tenta de novo)
+      EventInvokeConfig:
+        MaximumRetryAttempts: 0
+        MaximumEventAgeInSeconds: 60
+      Events:
+        Schedule:
+          Type: ScheduleV2
+          Properties:
+            Name: !Sub "proofsec-${Stage}-indexer"
+            ScheduleExpression: rate(1 minute)
+            RetryPolicy:
+              MaximumRetryAttempts: 0
+              MaximumEventAgeInSeconds: 60
+
+  # ==========================================================================
+  # Evidencias
+  # ==========================================================================
+  EvidenceUploadFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      Handler: evidence.upload_url
+      Timeout: 25
+      LoggingConfig: { LogGroup: !Ref AppLogGroup }
+      Policies:
+        - Version: '2012-10-17'
+          Statement:
+            - Effect: Allow
+              Action: [dynamodb:GetItem, dynamodb:PutItem]
+              Resource: !GetAtt JobsTable.Arn
+            - Effect: Allow
+              Action: sns:Publish
+              Resource: !Ref AlertsTopic
+            # So assina o PUT pre-assinado; nao le nem apaga (PS-10)
+            - Effect: Allow
+              Action: s3:PutObject
+              Resource: !Sub "arn:${AWS::Partition}:s3:::proofsec-reports-${Stage}-${AWS::AccountId}-${AWS::Region}/reports/*"
+      Events:
+        Api:
+          Type: HttpApi
+          Properties:
+            ApiId: !Ref ProofSecApi
+            Path: /evidence/upload-url
+            Method: POST
+            Auth: { Authorizer: WalletAuthorizer }
+
+  EvidenceDownloadFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      Handler: evidence.download_url
+      Timeout: 25
+      LoggingConfig: { LogGroup: !Ref AppLogGroup }
+      Policies:
+        - Version: '2012-10-17'
+          Statement:
+            - Effect: Allow
+              Action: [dynamodb:GetItem, dynamodb:PutItem]
+              Resource: !GetAtt JobsTable.Arn
+            - Effect: Allow
+              Action: sns:Publish
+              Resource: !Ref AlertsTopic
+            - Effect: Allow
+              Action: s3:GetObject
+              Resource: !Sub "arn:${AWS::Partition}:s3:::proofsec-reports-${Stage}-${AWS::AccountId}-${AWS::Region}/reports/*"
+            # PS-34: sem s3:ListBucket o S3 responde 403 (e não 404) a HeadObject de chave ausente.
+            # Sem Condition de prefixo: `s3:prefix` não existe no contexto de HeadObject e negaria tudo.
+            - Effect: Allow
+              Action: s3:ListBucket
+              Resource: !Sub "arn:${AWS::Partition}:s3:::proofsec-reports-${Stage}-${AWS::AccountId}-${AWS::Region}"
+      Events:
+        Api:
+          Type: HttpApi
+          Properties:
+            ApiId: !Ref ProofSecApi
+            Path: /evidence/download-url
+            Method: POST
+            Auth: { Authorizer: WalletAuthorizer }
+
+  # Recalcula o SHA-256 de cada objeto novo e apaga o que nao bate com a chave
+  EvidenceVerifyFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      Handler: evidence.verify_upload
+      Timeout: 120
+      MemorySize: 512
+      LoggingConfig: { LogGroup: !Ref AppLogGroup }
+      Policies:
+        - Version: '2012-10-17'
+          Statement:
+            - Effect: Allow
+              Action: [s3:GetObject, s3:GetObjectVersion, s3:DeleteObject, s3:DeleteObjectVersion]
+              Resource: !Sub "arn:${AWS::Partition}:s3:::proofsec-reports-${Stage}-${AWS::AccountId}-${AWS::Region}/*"
+            - Effect: Allow
+              Action: sns:Publish
+              Resource: !Ref AlertsTopic
+            - Effect: Allow
+              Action: sqs:SendMessage
+              Resource: !GetAtt AsyncDlq.Arn
+      EventInvokeConfig:
+        MaximumRetryAttempts: 2
+        MaximumEventAgeInSeconds: 3600
+        DestinationConfig:
+          OnFailure:
+            Type: SQS
+            Destination: !GetAtt AsyncDlq.Arn
+      Events:
+        Uploaded:
+          Type: S3
+          Properties:
+            Bucket: !Ref ReportsBucket
+            Events: s3:ObjectCreated:*
+
+  # ==========================================================================
+  # Usuarios (chave publica X25519 para cifrar relatorios)
+  # ==========================================================================
+  PutEncryptionKeyFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      Handler: users.put_encryption_key
+      LoggingConfig: { LogGroup: !Ref AppLogGroup }
+      Policies:
+        - Version: '2012-10-17'
+          Statement:
+            - Effect: Allow
+              Action: [dynamodb:GetItem, dynamodb:PutItem]
+              Resource: !GetAtt UsersTable.Arn
+      Events:
+        Api:
+          Type: HttpApi
+          Properties:
+            ApiId: !Ref ProofSecApi
+            Path: /users/me/encryption-key
+            Method: PUT
+            Auth: { Authorizer: WalletAuthorizer }
+
+  GetEncryptionKeyFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      Handler: users.get_encryption_key
+      LoggingConfig: { LogGroup: !Ref AppLogGroup }
+      Policies:
+        - Version: '2012-10-17'
+          Statement:
+            - Effect: Allow
+              Action: dynamodb:GetItem
+              Resource: !GetAtt UsersTable.Arn
+      Events:
+        Api:
+          Type: HttpApi
+          Properties:
+            ApiId: !Ref ProofSecApi
+            Path: /users/{wallet}/encryption-key
+            Method: GET
+
+  # ==========================================================================
+  # Agente de IA: cerebro (sem chaves). As maos ficam em agent/template.yaml.
+  # ==========================================================================
+  AgentProposeFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      Handler: agent.propose
+      Timeout: 29
+      LoggingConfig: { LogGroup: !Ref AppLogGroup }
+      Tags:
+        Component: agent
+      Environment:
+        Variables:
+          COMPANY_WALLET: !Ref CompanyWallet
+          LLM_MODEL: !Ref LlmModel
+          MAX_AGENT_SPENDING_LIMIT_USDC: !Ref MaxAgentSpendingLimitUsdc
+          PROPOSE_QUOTA_PER_HOUR: !Ref ProposeQuotaPerHour
+          ANTHROPIC_API_KEY_PARAM: !If [UseLlm, !Sub "/proofsec/${Stage}/anthropic-api-key", !Ref AWS::NoValue]
+      Policies:
+        - Version: '2012-10-17'
+          Statement:
+            - Effect: Allow
+              Action: dynamodb:Query
+              Resource: !Sub "${JobsTable.Arn}/index/ClientIndex"
+            - Effect: Allow
+              Action: dynamodb:PutItem
+              Resource: !GetAtt JobsTable.Arn
+            - !If
+              - UseLlm
+              - Effect: Allow
+                Action: ssm:GetParameter
+                Resource: !Sub "arn:${AWS::Partition}:ssm:${AWS::Region}:${AWS::AccountId}:parameter/proofsec/${Stage}/anthropic-api-key"
+              - !Ref AWS::NoValue
+      Events:
+        Api:
+          Type: HttpApi
+          Properties:
+            ApiId: !Ref ProofSecApi
+            Path: /agent/propose
+            Method: POST
+            Auth: { Authorizer: WalletAuthorizer }
+
+  AgentEventFunction:
+    Type: AWS::Serverless::Function
+    Condition: HasCompanyWallet
+    Properties:
+      Handler: agent.on_event
+      Timeout: 30
+      LoggingConfig: { LogGroup: !Ref AppLogGroup }
+      Tags:
+        Component: agent
+      Environment:
+        Variables:
+          COMPANY_WALLET: !Ref CompanyWallet
+          LLM_MODEL: !Ref LlmModel
+          MAX_AGENT_SPENDING_LIMIT_USDC: !Ref MaxAgentSpendingLimitUsdc
+          MAX_PROPOSALS_PER_EVENT: '10'
+          ANTHROPIC_API_KEY_PARAM: !If [UseLlm, !Sub "/proofsec/${Stage}/anthropic-api-key", !Ref AWS::NoValue]
+      Policies:
+        - Version: '2012-10-17'
+          Statement:
+            - Effect: Allow
+              Action: [dynamodb:GetItem, dynamodb:PutItem]  # GetItem: dedup antes do LLM (ADR-019)
+              Resource: !GetAtt JobsTable.Arn
+            - Effect: Allow
+              Action: sns:Publish  # alerta de lote acima do limite (ADR-019)
+              Resource: !Ref AlertsTopic
+            - Effect: Allow
+              Action: sqs:SendMessage
+              Resource: !GetAtt AsyncDlq.Arn
+            - !If
+              - UseLlm
+              - Effect: Allow
+                Action: ssm:GetParameter
+                Resource: !Sub "arn:${AWS::Partition}:ssm:${AWS::Region}:${AWS::AccountId}:parameter/proofsec/${Stage}/anthropic-api-key"
+              - !Ref AWS::NoValue
+      EventInvokeConfig:
+        MaximumRetryAttempts: 2
+        MaximumEventAgeInSeconds: 3600
+        DestinationConfig:
+          OnFailure:
+            Type: SQS
+            Destination: !GetAtt AsyncDlq.Arn
+      Events:
+        GuardDuty:
+          Type: EventBridgeRule
+          Properties:
+            Pattern:
+              account: [!Ref AWS::AccountId]
+              source: [aws.guardduty]
+              detail-type: [GuardDuty Finding]
+              detail:
+                severity: [{ numeric: ['>=', 4] }]
+        SecurityHub:
+          Type: EventBridgeRule
+          Properties:
+            Pattern:
+              account: [!Ref AWS::AccountId]
+              source: [aws.securityhub]
+              detail-type: [Security Hub Findings - Imported]
+              detail:
+                findings:
+                  AwsAccountId: [!Ref AWS::AccountId]
+                  Severity:
+                    Label: [MEDIUM, HIGH, CRITICAL]
+
+  # Demo (PS-35): `aws events put-events` com source "proofsec.demo". Só existe no stage dev;
+  # agent.on_event também ignora esse source fora do dev (defesa em profundidade).
+  AgentDemoRule:
+    Type: AWS::Events::Rule
+    Condition: DemoEventsEnabled
+    Properties:
+      Description: Alertas sinteticos da demo do agente (somente dev).
+      EventPattern:
+        account: [!Ref AWS::AccountId]
+        source: [proofsec.demo]
+      Targets:
+        - Id: AgentEventFunction
+          Arn: !GetAtt AgentEventFunction.Arn
+
+  AgentDemoRulePermission:
+    Type: AWS::Lambda::Permission
+    Condition: DemoEventsEnabled
+    Properties:
+      Action: lambda:InvokeFunction
+      FunctionName: !Ref AgentEventFunction
+      Principal: events.amazonaws.com
+      SourceArn: !GetAtt AgentDemoRule.Arn
+
+  AgentProposalsFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      Handler: agent.list_proposals
+      LoggingConfig: { LogGroup: !Ref AppLogGroup }
+      Tags:
+        Component: agent
+      Environment:
+        Variables:
+          AGENT_API_KEY_PARAM: !Sub "/proofsec/${Stage}/agent-api-key"
+      Policies:
+        - Version: '2012-10-17'
+          Statement:
+            - Effect: Allow
+              Action: dynamodb:Query
+              Resource: !Sub "${JobsTable.Arn}/index/StatusIndex"
+            - Effect: Allow
+              Action: ssm:GetParameter
+              Resource: !Sub "arn:${AWS::Partition}:ssm:${AWS::Region}:${AWS::AccountId}:parameter/proofsec/${Stage}/agent-api-key"
+      Events:
+        Api:
+          Type: HttpApi
+          Properties:
+            ApiId: !Ref ProofSecApi
+            Path: /agent/proposals
+            Method: GET
+
+  AgentExecutedFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      Handler: agent.mark_executed
+      Timeout: 25
+      LoggingConfig: { LogGroup: !Ref AppLogGroup }
+      Tags:
+        Component: agent
+      Environment:
+        Variables:
+          AGENT_API_KEY_PARAM: !Sub "/proofsec/${Stage}/agent-api-key"
+      Policies:
+        - Version: '2012-10-17'
+          Statement:
+            - Effect: Allow
+              Action: [dynamodb:GetItem, dynamodb:PutItem]
+              Resource: !GetAtt JobsTable.Arn
+            - Effect: Allow
+              Action: sns:Publish
+              Resource: !Ref AlertsTopic
+            - Effect: Allow
+              Action: ssm:GetParameter
+              Resource: !Sub "arn:${AWS::Partition}:ssm:${AWS::Region}:${AWS::AccountId}:parameter/proofsec/${Stage}/agent-api-key"
+      Events:
+        Api:
+          Type: HttpApi
+          Properties:
+            ApiId: !Ref ProofSecApi
+            Path: /agent/proposals/{jobId}/executed
+            Method: POST
+
+  # A politica on-chain recusou a proposta: vai para revisao humana (NEEDS_HUMAN)
+  AgentRejectedFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      Handler: agent.mark_rejected
+      LoggingConfig: { LogGroup: !Ref AppLogGroup }
+      Tags:
+        Component: agent
+      Environment:
+        Variables:
+          AGENT_API_KEY_PARAM: !Sub "/proofsec/${Stage}/agent-api-key"
+      Policies:
+        - Version: '2012-10-17'
+          Statement:
+            - Effect: Allow
+              Action: [dynamodb:GetItem, dynamodb:PutItem]
+              Resource: !GetAtt JobsTable.Arn
+            - Effect: Allow
+              Action: sns:Publish
+              Resource: !Ref AlertsTopic
+            - Effect: Allow
+              Action: ssm:GetParameter
+              Resource: !Sub "arn:${AWS::Partition}:ssm:${AWS::Region}:${AWS::AccountId}:parameter/proofsec/${Stage}/agent-api-key"
+      Events:
+        Api:
+          Type: HttpApi
+          Properties:
+            ApiId: !Ref ProofSecApi
+            Path: /agent/proposals/{jobId}/rejected
+            Method: POST
+
+  # ==========================================================================
+  # Alarmes (todos publicam no AlertsTopic)
+  # ==========================================================================
+  AuthFailuresMetricFilter:
+    Type: AWS::Logs::MetricFilter
+    Properties:
+      LogGroupName: !Ref ApiAccessLogGroup
+      FilterPattern: '{ ($.status = "401") || ($.status = "403") }'
+      MetricTransformations:
+        - MetricNamespace: !Sub "ProofSec/${Stage}"
+          MetricName: AuthFailures
+          MetricValue: '1'
+          DefaultValue: 0
+
+  AuthVerifyUnhandledMetricFilter:
+    Type: AWS::Logs::MetricFilter
+    Properties:
+      LogGroupName: !Ref AppLogGroup
+      FilterPattern: '{ ($.event = "unhandled") && ($.handler = "verify_signature") }'
+      MetricTransformations:
+        - MetricNamespace: !Sub "ProofSec/${Stage}"
+          MetricName: AuthVerifyUnhandled
+          MetricValue: '1'
+          DefaultValue: 0
+
+  IndexerHandledFailuresMetricFilter:
+    Type: AWS::Logs::MetricFilter
+    Properties:
+      LogGroupName: !Ref AppLogGroup
+      FilterPattern: '{ ($.event = "indexer_item_failed") || ($.event = "indexer_config_watch_failed") }'
+      MetricTransformations:
+        - MetricNamespace: !Sub "ProofSec/${Stage}"
+          MetricName: IndexerHandledFailures
+          MetricValue: '1'
+          DefaultValue: 0
+
+  AuthFailuresAlarm:
+    Type: AWS::CloudWatch::Alarm
+    Properties:
+      AlarmDescription: Muitas respostas 401/403 (tentativa de forca bruta ou token invalido em massa).
+      Namespace: !Sub "ProofSec/${Stage}"
+      MetricName: AuthFailures
+      Statistic: Sum
+      Period: 300
+      EvaluationPeriods: 1
+      Threshold: 50
+      ComparisonOperator: GreaterThanOrEqualToThreshold
+      TreatMissingData: notBreaching
+      AlarmActions: [!Ref AlertsTopic]
+
+  Api5xxAlarm:
+    Type: AWS::CloudWatch::Alarm
+    Properties:
+      AlarmDescription: Erros 5xx no HTTP API.
+      Namespace: AWS/ApiGateway
+      MetricName: 5xx
+      Dimensions:
+        - { Name: ApiId, Value: !Ref ProofSecApi }
+      Statistic: Sum
+      Period: 300
+      EvaluationPeriods: 1
+      Threshold: 5
+      ComparisonOperator: GreaterThanOrEqualToThreshold
+      TreatMissingData: notBreaching
+      AlarmActions: [!Ref AlertsTopic]
+
+  AuthorizerErrorsAlarm:
+    Type: AWS::CloudWatch::Alarm
+    Properties:
+      AlarmDescription: Erros no Lambda authorizer (login quebrado ou segredo do JWT indisponivel).
+      Namespace: AWS/Lambda
+      MetricName: Errors
+      Dimensions:
+        - { Name: FunctionName, Value: !Ref AuthorizerFunction }
+      Statistic: Sum
+      Period: 300
+      EvaluationPeriods: 1
+      Threshold: 1
+      ComparisonOperator: GreaterThanOrEqualToThreshold
+      TreatMissingData: notBreaching
+      AlarmActions: [!Ref AlertsTopic]
+
+  AuthVerifyErrorsAlarm:
+    Type: AWS::CloudWatch::Alarm
+    DependsOn: AuthVerifyUnhandledMetricFilter
+    Properties:
+      AlarmDescription: Excecoes convertidas em HTTP 500 durante a verificacao do login SIWS.
+      Namespace: !Sub "ProofSec/${Stage}"
+      MetricName: AuthVerifyUnhandled
+      Statistic: Sum
+      Period: 300
+      EvaluationPeriods: 1
+      Threshold: 1
+      ComparisonOperator: GreaterThanOrEqualToThreshold
+      TreatMissingData: notBreaching
+      AlarmActions: [!Ref AlertsTopic]
+
+  EvidenceVerifyErrorsAlarm:
+    Type: AWS::CloudWatch::Alarm
+    Properties:
+      AlarmDescription: Falha ao verificar o hash de um upload (objeto pode ter ficado sem verificacao).
+      Namespace: AWS/Lambda
+      MetricName: Errors
+      Dimensions:
+        - { Name: FunctionName, Value: !Ref EvidenceVerifyFunction }
+      Statistic: Sum
+      Period: 300
+      EvaluationPeriods: 1
+      Threshold: 1
+      ComparisonOperator: GreaterThanOrEqualToThreshold
+      TreatMissingData: notBreaching
+      AlarmActions: [!Ref AlertsTopic]
+
+  IndexerErrorsAlarm:
+    Type: AWS::CloudWatch::Alarm
+    Properties:
+      AlarmDescription: Indexador falhando de forma persistente (RPC fora ou layout divergente).
+      Namespace: AWS/Lambda
+      MetricName: Errors
+      Dimensions:
+        - { Name: FunctionName, Value: !Ref IndexerFunction }
+      Statistic: Sum
+      Period: 900
+      EvaluationPeriods: 1
+      Threshold: 5
+      ComparisonOperator: GreaterThanOrEqualToThreshold
+      TreatMissingData: notBreaching
+      AlarmActions: [!Ref AlertsTopic]
+
+  IndexerHandledFailuresAlarm:
+    Type: AWS::CloudWatch::Alarm
+    DependsOn: IndexerHandledFailuresMetricFilter
+    Properties:
+      AlarmDescription: Contas ou Config on-chain falhando repetidamente durante a reconciliacao.
+      Namespace: !Sub "ProofSec/${Stage}"
+      MetricName: IndexerHandledFailures
+      Statistic: Sum
+      Period: 900
+      EvaluationPeriods: 1
+      Threshold: 5
+      ComparisonOperator: GreaterThanOrEqualToThreshold
+      TreatMissingData: notBreaching
+      AlarmActions: [!Ref AlertsTopic]
+
+  AgentEventErrorsAlarm:
+    Type: AWS::CloudWatch::Alarm
+    Condition: HasCompanyWallet
+    Properties:
+      AlarmDescription: Erros ao processar alertas do GuardDuty/Security Hub.
+      Namespace: AWS/Lambda
+      MetricName: Errors
+      Dimensions:
+        - { Name: FunctionName, Value: !Ref AgentEventFunction }
+      Statistic: Sum
+      Period: 300
+      EvaluationPeriods: 1
+      Threshold: 1
+      ComparisonOperator: GreaterThanOrEqualToThreshold
+      TreatMissingData: notBreaching
+      AlarmActions: [!Ref AlertsTopic]
+
+  # Sem dimensao = todas as funcoes da conta na regiao (inclui o executor)
+  LambdaThrottlesAlarm:
+    Type: AWS::CloudWatch::Alarm
+    Properties:
+      AlarmDescription: Lambdas sendo estranguladas (limite de concorrencia da conta).
+      Namespace: AWS/Lambda
+      MetricName: Throttles
+      Statistic: Sum
+      Period: 300
+      EvaluationPeriods: 1
+      Threshold: 1
+      ComparisonOperator: GreaterThanOrEqualToThreshold
+      TreatMissingData: notBreaching
+      AlarmActions: [!Ref AlertsTopic]
+
+  AsyncDlqAlarm:
+    Type: AWS::CloudWatch::Alarm
+    Properties:
+      AlarmDescription: Ha invocacoes assincronas que falharam (ver a fila DLQ).
+      Namespace: AWS/SQS
+      MetricName: ApproximateNumberOfMessagesVisible
+      Dimensions:
+        - { Name: QueueName, Value: !GetAtt AsyncDlq.QueueName }
+      Statistic: Maximum
+      Period: 300
+      EvaluationPeriods: 1
+      Threshold: 1
+      ComparisonOperator: GreaterThanOrEqualToThreshold
+      TreatMissingData: notBreaching
+      AlarmActions: [!Ref AlertsTopic]
+
+  # ==========================================================================
+  # Custo e auditoria
+  # ==========================================================================
+  # Orcamento da CONTA inteira (nao so desta stack)
+  MonthlyBudget:
+    Type: AWS::Budgets::Budget
+    Condition: HasAlertEmail
+    Properties:
+      Budget:
+        BudgetName: !Sub "proofsec-${Stage}-monthly"
+        BudgetType: COST
+        TimeUnit: MONTHLY
+        BudgetLimit:
+          Amount: !Ref MonthlyBudgetUsd
+          Unit: USD
+      NotificationsWithSubscribers:
+        - Notification:
+            NotificationType: ACTUAL
+            ComparisonOperator: GREATER_THAN
+            Threshold: 80
+            ThresholdType: PERCENTAGE
+          Subscribers:
+            - { SubscriptionType: EMAIL, Address: !Ref AlertEmail }
+        - Notification:
+            NotificationType: FORECASTED
+            ComparisonOperator: GREATER_THAN
+            Threshold: 100
+            ThresholdType: PERCENTAGE
+          Subscribers:
+            - { SubscriptionType: EMAIL, Address: !Ref AlertEmail }
+
+  TrailBucket:
+    Type: AWS::S3::Bucket
+    Condition: CreateCloudTrail
+    DeletionPolicy: Retain
+    UpdateReplacePolicy: Retain
+    Properties:
+      BucketEncryption:
+        ServerSideEncryptionConfiguration:
+          - ServerSideEncryptionByDefault: { SSEAlgorithm: AES256 }
+      PublicAccessBlockConfiguration:
+        BlockPublicAcls: true
+        BlockPublicPolicy: true
+        IgnorePublicAcls: true
+        RestrictPublicBuckets: true
+      OwnershipControls:
+        Rules:
+          - ObjectOwnership: BucketOwnerEnforced
+      LifecycleConfiguration:
+        Rules:
+          - Id: expire-trail-logs
+            Status: Enabled
+            ExpirationInDays: 365
+      Tags:
+        - { Key: Component, Value: ops }
+
+  TrailBucketPolicy:
+    Type: AWS::S3::BucketPolicy
+    Condition: CreateCloudTrail
+    Properties:
+      Bucket: !Ref TrailBucket
+      PolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Sid: CloudTrailAclCheck
+            Effect: Allow
+            Principal: { Service: cloudtrail.amazonaws.com }
+            Action: s3:GetBucketAcl
+            Resource: !GetAtt TrailBucket.Arn
+            Condition:
+              StringEquals:
+                'aws:SourceArn': !Sub "arn:${AWS::Partition}:cloudtrail:${AWS::Region}:${AWS::AccountId}:trail/proofsec-${Stage}"
+          - Sid: CloudTrailWrite
+            Effect: Allow
+            Principal: { Service: cloudtrail.amazonaws.com }
+            Action: s3:PutObject
+            Resource: !Sub "${TrailBucket.Arn}/AWSLogs/${AWS::AccountId}/*"
+            Condition:
+              StringEquals:
+                's3:x-amz-acl': bucket-owner-full-control
+                'aws:SourceArn': !Sub "arn:${AWS::Partition}:cloudtrail:${AWS::Region}:${AWS::AccountId}:trail/proofsec-${Stage}"
+          - Sid: DenyInsecureTransport
+            Effect: Deny
+            Principal: '*'
+            Action: 's3:*'
+            Resource:
+              - !GetAtt TrailBucket.Arn
+              - !Sub "${TrailBucket.Arn}/*"
+            Condition:
+              Bool: { 'aws:SecureTransport': 'false' }
+
+  Trail:
+    Type: AWS::CloudTrail::Trail
+    Condition: CreateCloudTrail
+    DependsOn: TrailBucketPolicy
+    Properties:
+      TrailName: !Sub "proofsec-${Stage}"
+      S3BucketName: !Ref TrailBucket
+      IsLogging: true
+      IsMultiRegionTrail: true
+      IncludeGlobalServiceEvents: true
+      EnableLogFileValidation: true
+      EventSelectors:
+        - ReadWriteType: All
+          IncludeManagementEvents: true
+          # Quem leu/gravou evidencias diretamente no bucket
+          DataResources:
+            - Type: AWS::S3::Object
+              Values:
+                - !Sub "arn:${AWS::Partition}:s3:::proofsec-reports-${Stage}-${AWS::AccountId}-${AWS::Region}/"
+
+Outputs:
+  ApiEndpoint:
+    Description: URL do HTTP API (NEXT_PUBLIC_API_URL no frontend e ApiUrl na stack do executor)
+    Value: !Sub "https://${ProofSecApi}.execute-api.${AWS::Region}.amazonaws.com"
+  AlertsTopicArn:
+    Description: Topico de alertas (AlertsTopicArn na stack do executor)
+    Value: !Ref AlertsTopic
+  ReportsBucketName:
+    Value: !Ref ReportsBucket
+  JobsTableName:
+    Value: !Ref JobsTable
+  UsersTableName:
+    Value: !Ref UsersTable
+  NoncesTableName:
+    Value: !Ref NoncesTable
+  AsyncDlqUrl:
+    Value: !Ref AsyncDlq
+  AppLogGroupName:
+    Value: !Ref AppLogGroup
+  SsmParameterPrefix:
+    Description: Prefixo dos segredos (SecureString) lidos em runtime
+    Value: !Sub "/proofsec/${Stage}/"

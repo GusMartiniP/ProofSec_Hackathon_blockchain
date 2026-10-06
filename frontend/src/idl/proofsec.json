@@ -1,0 +1,1579 @@
+{
+  "address": "PrfSec1111111111111111111111111111111111111",
+  "metadata": {
+    "name": "proofsec",
+    "version": "0.3.0",
+    "spec": "0.1.0",
+    "description": "PREVIEW gerado por scripts/gen_idl_preview.py - substituido pelo IDL real no anchor build"
+  },
+  "instructions": [
+    {
+      "name": "accept_job",
+      "discriminator": [
+        43,
+        201,
+        124,
+        1,
+        19,
+        189,
+        96,
+        10
+      ],
+      "accounts": [
+        {
+          "name": "job_account",
+          "writable": true
+        },
+        {
+          "name": "researcher",
+          "signer": true
+        }
+      ],
+      "args": []
+    },
+    {
+      "name": "approve_and_release",
+      "discriminator": [
+        63,
+        254,
+        154,
+        45,
+        149,
+        32,
+        80,
+        236
+      ],
+      "accounts": [
+        {
+          "name": "config"
+        },
+        {
+          "name": "job_account",
+          "writable": true
+        },
+        {
+          "name": "vault",
+          "writable": true
+        },
+        {
+          "name": "mint"
+        },
+        {
+          "name": "client",
+          "signer": true
+        },
+        {
+          "name": "researcher"
+        },
+        {
+          "name": "researcher_token_account",
+          "writable": true
+        },
+        {
+          "name": "treasury"
+        },
+        {
+          "name": "treasury_token_account",
+          "writable": true
+        },
+        {
+          "name": "rent_payer",
+          "writable": true
+        },
+        {
+          "name": "token_program",
+          "address": "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA"
+        }
+      ],
+      "args": []
+    },
+    {
+      "name": "assign_researcher",
+      "discriminator": [
+        63,
+        123,
+        222,
+        25,
+        61,
+        130,
+        151,
+        129
+      ],
+      "accounts": [
+        {
+          "name": "job_account",
+          "writable": true
+        },
+        {
+          "name": "client",
+          "signer": true
+        }
+      ],
+      "args": [
+        {
+          "name": "researcher",
+          "type": "pubkey"
+        }
+      ]
+    },
+    {
+      "name": "cancel_job",
+      "discriminator": [
+        126,
+        241,
+        155,
+        241,
+        50,
+        236,
+        83,
+        118
+      ],
+      "accounts": [
+        {
+          "name": "job_account",
+          "writable": true
+        },
+        {
+          "name": "vault",
+          "writable": true
+        },
+        {
+          "name": "mint"
+        },
+        {
+          "name": "client",
+          "signer": true
+        },
+        {
+          "name": "client_token_account",
+          "writable": true
+        },
+        {
+          "name": "rent_payer",
+          "writable": true
+        },
+        {
+          "name": "token_program",
+          "address": "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA"
+        }
+      ],
+      "args": []
+    },
+    {
+      "name": "claim_after_review",
+      "discriminator": [
+        114,
+        16,
+        249,
+        229,
+        128,
+        156,
+        74,
+        198
+      ],
+      "accounts": [
+        {
+          "name": "config"
+        },
+        {
+          "name": "job_account",
+          "writable": true
+        },
+        {
+          "name": "vault",
+          "writable": true
+        },
+        {
+          "name": "mint"
+        },
+        {
+          "name": "researcher",
+          "signer": true
+        },
+        {
+          "name": "researcher_token_account",
+          "writable": true
+        },
+        {
+          "name": "treasury"
+        },
+        {
+          "name": "treasury_token_account",
+          "writable": true
+        },
+        {
+          "name": "rent_payer",
+          "writable": true
+        },
+        {
+          "name": "token_program",
+          "address": "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA"
+        }
+      ],
+      "args": []
+    },
+    {
+      "name": "initialize_config",
+      "discriminator": [
+        208,
+        127,
+        21,
+        1,
+        194,
+        190,
+        196,
+        70
+      ],
+      "accounts": [
+        {
+          "name": "config",
+          "writable": true
+        },
+        {
+          "name": "admin",
+          "writable": true,
+          "signer": true
+        },
+        {
+          "name": "program",
+          "address": "PrfSec1111111111111111111111111111111111111"
+        },
+        {
+          "name": "program_data"
+        },
+        {
+          "name": "system_program",
+          "address": "11111111111111111111111111111111"
+        }
+      ],
+      "args": [
+        {
+          "name": "arbiter",
+          "type": "pubkey"
+        },
+        {
+          "name": "treasury",
+          "type": "pubkey"
+        },
+        {
+          "name": "fee_bps",
+          "type": "u16"
+        },
+        {
+          "name": "allowed_mint",
+          "type": "pubkey"
+        },
+        {
+          "name": "dispute_period",
+          "type": "i64"
+        }
+      ]
+    },
+    {
+      "name": "initialize_job",
+      "discriminator": [
+        137,
+        22,
+        138,
+        41,
+        76,
+        208,
+        114,
+        50
+      ],
+      "accounts": [
+        {
+          "name": "config"
+        },
+        {
+          "name": "job_account",
+          "writable": true
+        },
+        {
+          "name": "vault",
+          "writable": true
+        },
+        {
+          "name": "client",
+          "writable": true,
+          "signer": true
+        },
+        {
+          "name": "client_token_account",
+          "writable": true
+        },
+        {
+          "name": "mint"
+        },
+        {
+          "name": "token_program",
+          "address": "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA"
+        },
+        {
+          "name": "system_program",
+          "address": "11111111111111111111111111111111"
+        }
+      ],
+      "args": [
+        {
+          "name": "job_id",
+          "type": "string"
+        },
+        {
+          "name": "amount",
+          "type": "u64"
+        },
+        {
+          "name": "deadline",
+          "type": "i64"
+        },
+        {
+          "name": "review_period",
+          "type": "i64"
+        },
+        {
+          "name": "scope_hash",
+          "type": {
+            "array": [
+              "u8",
+              32
+            ]
+          }
+        },
+        {
+          "name": "researcher",
+          "type": "pubkey"
+        }
+      ]
+    },
+    {
+      "name": "initialize_job_by_agent",
+      "discriminator": [
+        104,
+        177,
+        208,
+        73,
+        202,
+        203,
+        43,
+        97
+      ],
+      "accounts": [
+        {
+          "name": "config"
+        },
+        {
+          "name": "policy",
+          "writable": true
+        },
+        {
+          "name": "agent",
+          "writable": true,
+          "signer": true
+        },
+        {
+          "name": "owner"
+        },
+        {
+          "name": "job_account",
+          "writable": true
+        },
+        {
+          "name": "vault",
+          "writable": true
+        },
+        {
+          "name": "owner_token_account",
+          "writable": true
+        },
+        {
+          "name": "mint"
+        },
+        {
+          "name": "token_program",
+          "address": "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA"
+        },
+        {
+          "name": "system_program",
+          "address": "11111111111111111111111111111111"
+        }
+      ],
+      "args": [
+        {
+          "name": "job_id",
+          "type": "string"
+        },
+        {
+          "name": "amount",
+          "type": "u64"
+        },
+        {
+          "name": "deadline",
+          "type": "i64"
+        },
+        {
+          "name": "review_period",
+          "type": "i64"
+        },
+        {
+          "name": "scope_hash",
+          "type": {
+            "array": [
+              "u8",
+              32
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "open_dispute",
+      "discriminator": [
+        137,
+        25,
+        99,
+        119,
+        23,
+        223,
+        161,
+        42
+      ],
+      "accounts": [
+        {
+          "name": "job_account",
+          "writable": true
+        },
+        {
+          "name": "client",
+          "signer": true
+        }
+      ],
+      "args": []
+    },
+    {
+      "name": "refund_expired",
+      "discriminator": [
+        118,
+        153,
+        164,
+        244,
+        40,
+        128,
+        242,
+        250
+      ],
+      "accounts": [
+        {
+          "name": "job_account",
+          "writable": true
+        },
+        {
+          "name": "vault",
+          "writable": true
+        },
+        {
+          "name": "mint"
+        },
+        {
+          "name": "client",
+          "signer": true
+        },
+        {
+          "name": "client_token_account",
+          "writable": true
+        },
+        {
+          "name": "rent_payer",
+          "writable": true
+        },
+        {
+          "name": "token_program",
+          "address": "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA"
+        }
+      ],
+      "args": []
+    },
+    {
+      "name": "resolve_dispute",
+      "discriminator": [
+        231,
+        6,
+        202,
+        6,
+        96,
+        103,
+        12,
+        230
+      ],
+      "accounts": [
+        {
+          "name": "config"
+        },
+        {
+          "name": "arbiter",
+          "signer": true
+        },
+        {
+          "name": "job_account",
+          "writable": true
+        },
+        {
+          "name": "vault",
+          "writable": true
+        },
+        {
+          "name": "mint"
+        },
+        {
+          "name": "client"
+        },
+        {
+          "name": "client_token_account",
+          "writable": true
+        },
+        {
+          "name": "researcher"
+        },
+        {
+          "name": "researcher_token_account",
+          "writable": true
+        },
+        {
+          "name": "treasury"
+        },
+        {
+          "name": "treasury_token_account",
+          "writable": true
+        },
+        {
+          "name": "rent_payer",
+          "writable": true
+        },
+        {
+          "name": "token_program",
+          "address": "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA"
+        }
+      ],
+      "args": [
+        {
+          "name": "researcher_bps",
+          "type": "u16"
+        }
+      ]
+    },
+    {
+      "name": "resolve_dispute_timeout",
+      "discriminator": [
+        244,
+        133,
+        66,
+        200,
+        61,
+        38,
+        228,
+        115
+      ],
+      "accounts": [
+        {
+          "name": "config"
+        },
+        {
+          "name": "job_account",
+          "writable": true
+        },
+        {
+          "name": "vault",
+          "writable": true
+        },
+        {
+          "name": "mint"
+        },
+        {
+          "name": "client"
+        },
+        {
+          "name": "client_token_account",
+          "writable": true
+        },
+        {
+          "name": "researcher"
+        },
+        {
+          "name": "researcher_token_account",
+          "writable": true
+        },
+        {
+          "name": "treasury"
+        },
+        {
+          "name": "treasury_token_account",
+          "writable": true
+        },
+        {
+          "name": "rent_payer",
+          "writable": true
+        },
+        {
+          "name": "token_program",
+          "address": "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA"
+        }
+      ],
+      "args": []
+    },
+    {
+      "name": "set_agent_policy",
+      "discriminator": [
+        138,
+        209,
+        250,
+        191,
+        75,
+        33,
+        132,
+        162
+      ],
+      "accounts": [
+        {
+          "name": "policy",
+          "writable": true
+        },
+        {
+          "name": "owner",
+          "writable": true,
+          "signer": true
+        },
+        {
+          "name": "system_program",
+          "address": "11111111111111111111111111111111"
+        }
+      ],
+      "args": [
+        {
+          "name": "agent",
+          "type": "pubkey"
+        },
+        {
+          "name": "max_per_job",
+          "type": "u64"
+        },
+        {
+          "name": "max_per_period",
+          "type": "u64"
+        },
+        {
+          "name": "period_seconds",
+          "type": "i64"
+        },
+        {
+          "name": "active",
+          "type": "bool"
+        }
+      ]
+    },
+    {
+      "name": "submit_evidence",
+      "discriminator": [
+        12,
+        169,
+        228,
+        194,
+        229,
+        31,
+        44,
+        39
+      ],
+      "accounts": [
+        {
+          "name": "job_account",
+          "writable": true
+        },
+        {
+          "name": "researcher",
+          "signer": true
+        }
+      ],
+      "args": [
+        {
+          "name": "evidence_sha256",
+          "type": {
+            "array": [
+              "u8",
+              32
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "update_config",
+      "discriminator": [
+        29,
+        158,
+        252,
+        191,
+        10,
+        83,
+        219,
+        99
+      ],
+      "accounts": [
+        {
+          "name": "config",
+          "writable": true
+        },
+        {
+          "name": "admin",
+          "signer": true
+        }
+      ],
+      "args": [
+        {
+          "name": "new_admin",
+          "type": "pubkey"
+        },
+        {
+          "name": "arbiter",
+          "type": "pubkey"
+        },
+        {
+          "name": "treasury",
+          "type": "pubkey"
+        },
+        {
+          "name": "fee_bps",
+          "type": "u16"
+        },
+        {
+          "name": "allowed_mint",
+          "type": "pubkey"
+        },
+        {
+          "name": "dispute_period",
+          "type": "i64"
+        }
+      ]
+    }
+  ],
+  "accounts": [
+    {
+      "name": "AgentPolicy",
+      "discriminator": [
+        148,
+        193,
+        218,
+        129,
+        21,
+        96,
+        195,
+        77
+      ]
+    },
+    {
+      "name": "Config",
+      "discriminator": [
+        155,
+        12,
+        170,
+        224,
+        30,
+        250,
+        204,
+        130
+      ]
+    },
+    {
+      "name": "JobAccount",
+      "discriminator": [
+        91,
+        16,
+        162,
+        5,
+        45,
+        210,
+        125,
+        65
+      ]
+    }
+  ],
+  "events": [
+    {
+      "name": "AgentPolicyUpdated",
+      "discriminator": [
+        30,
+        0,
+        38,
+        214,
+        59,
+        232,
+        158,
+        228
+      ]
+    },
+    {
+      "name": "ConfigUpdated",
+      "discriminator": [
+        40,
+        241,
+        230,
+        122,
+        11,
+        19,
+        198,
+        194
+      ]
+    },
+    {
+      "name": "DisputeOpened",
+      "discriminator": [
+        239,
+        222,
+        102,
+        235,
+        193,
+        85,
+        1,
+        214
+      ]
+    },
+    {
+      "name": "DisputeResolved",
+      "discriminator": [
+        121,
+        64,
+        249,
+        153,
+        139,
+        128,
+        236,
+        187
+      ]
+    },
+    {
+      "name": "EvidenceSubmitted",
+      "discriminator": [
+        13,
+        123,
+        197,
+        44,
+        231,
+        117,
+        168,
+        53
+      ]
+    },
+    {
+      "name": "JobAccepted",
+      "discriminator": [
+        47,
+        54,
+        152,
+        59,
+        118,
+        195,
+        251,
+        114
+      ]
+    },
+    {
+      "name": "JobCreated",
+      "discriminator": [
+        48,
+        110,
+        162,
+        177,
+        67,
+        74,
+        159,
+        131
+      ]
+    },
+    {
+      "name": "JobRefunded",
+      "discriminator": [
+        156,
+        171,
+        111,
+        37,
+        17,
+        174,
+        8,
+        167
+      ]
+    },
+    {
+      "name": "JobReleased",
+      "discriminator": [
+        73,
+        13,
+        222,
+        144,
+        55,
+        34,
+        233,
+        79
+      ]
+    },
+    {
+      "name": "ResearcherAssigned",
+      "discriminator": [
+        229,
+        11,
+        83,
+        168,
+        159,
+        128,
+        33,
+        177
+      ]
+    }
+  ],
+  "errors": [
+    {
+      "code": 6000,
+      "name": "JobNotOpen",
+      "msg": "Job não está disponível para aceite."
+    },
+    {
+      "code": 6001,
+      "name": "JobNotInProgress",
+      "msg": "Job não está em andamento."
+    },
+    {
+      "code": 6002,
+      "name": "UnauthorizedResearcher",
+      "msg": "Pesquisador não autorizado para este job."
+    },
+    {
+      "code": 6003,
+      "name": "EvidenceNotSubmitted",
+      "msg": "Evidência técnica ainda não foi submetida."
+    },
+    {
+      "code": 6004,
+      "name": "DeadlineNotExpired",
+      "msg": "O prazo do contrato ainda não expirou."
+    },
+    {
+      "code": 6005,
+      "name": "DeadlineExpired",
+      "msg": "O prazo do contrato já expirou."
+    },
+    {
+      "code": 6006,
+      "name": "CannotRefund",
+      "msg": "Não é possível reembolsar neste estado."
+    },
+    {
+      "code": 6007,
+      "name": "ReviewWindowOpen",
+      "msg": "A janela de revisão ainda está aberta."
+    },
+    {
+      "code": 6008,
+      "name": "ReviewWindowClosed",
+      "msg": "A janela de revisão já terminou."
+    },
+    {
+      "code": 6009,
+      "name": "NotDisputed",
+      "msg": "Job não está em disputa."
+    },
+    {
+      "code": 6010,
+      "name": "InvalidAmount",
+      "msg": "Valor inválido."
+    },
+    {
+      "code": 6011,
+      "name": "InvalidDeadline",
+      "msg": "Prazo inválido."
+    },
+    {
+      "code": 6012,
+      "name": "InvalidReviewPeriod",
+      "msg": "Janela de revisão inválida."
+    },
+    {
+      "code": 6013,
+      "name": "InvalidJobId",
+      "msg": "job_id inválido (1 a 32 bytes)."
+    },
+    {
+      "code": 6014,
+      "name": "InvalidHash",
+      "msg": "Hash inválido (não pode ser zero)."
+    },
+    {
+      "code": 6015,
+      "name": "MintNotAllowed",
+      "msg": "Mint não permitido pela configuração."
+    },
+    {
+      "code": 6016,
+      "name": "InvalidTokenAccount",
+      "msg": "Conta de token não pertence à carteira esperada."
+    },
+    {
+      "code": 6017,
+      "name": "FeeTooHigh",
+      "msg": "Taxa acima do máximo permitido."
+    },
+    {
+      "code": 6018,
+      "name": "InvalidBps",
+      "msg": "Basis points inválidos."
+    },
+    {
+      "code": 6019,
+      "name": "PolicyInactive",
+      "msg": "Política do agente está inativa."
+    },
+    {
+      "code": 6020,
+      "name": "ExceedsPerJobLimit",
+      "msg": "Valor excede o limite por job da política do agente."
+    },
+    {
+      "code": 6021,
+      "name": "ExceedsPeriodLimit",
+      "msg": "Valor excede o limite do período da política do agente."
+    },
+    {
+      "code": 6022,
+      "name": "InvalidPolicy",
+      "msg": "Parâmetros de política inválidos."
+    },
+    {
+      "code": 6023,
+      "name": "MathOverflow",
+      "msg": "Overflow aritmético."
+    },
+    {
+      "code": 6024,
+      "name": "ResearcherNotAssigned",
+      "msg": "Nenhum pesquisador atribuído: o cliente precisa atribuir antes do aceite."
+    },
+    {
+      "code": 6025,
+      "name": "InvalidResearcher",
+      "msg": "O cliente não pode ser o pesquisador do próprio job."
+    },
+    {
+      "code": 6026,
+      "name": "InvalidDisputePeriod",
+      "msg": "Prazo de disputa inválido."
+    },
+    {
+      "code": 6027,
+      "name": "DisputeWindowOpen",
+      "msg": "O prazo do árbitro ainda não terminou."
+    },
+    {
+      "code": 6028,
+      "name": "InvalidAuthority",
+      "msg": "Autoridade inválida (chave vazia)."
+    }
+  ],
+  "types": [
+    {
+      "name": "AgentPolicy",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "owner",
+            "type": "pubkey"
+          },
+          {
+            "name": "agent",
+            "type": "pubkey"
+          },
+          {
+            "name": "max_per_job",
+            "type": "u64"
+          },
+          {
+            "name": "max_per_period",
+            "type": "u64"
+          },
+          {
+            "name": "period_seconds",
+            "type": "i64"
+          },
+          {
+            "name": "period_start",
+            "type": "i64"
+          },
+          {
+            "name": "spent_in_period",
+            "type": "u64"
+          },
+          {
+            "name": "active",
+            "type": "bool"
+          },
+          {
+            "name": "bump",
+            "type": "u8"
+          }
+        ]
+      }
+    },
+    {
+      "name": "AgentPolicyUpdated",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "policy",
+            "type": "pubkey"
+          },
+          {
+            "name": "owner",
+            "type": "pubkey"
+          },
+          {
+            "name": "agent",
+            "type": "pubkey"
+          },
+          {
+            "name": "max_per_job",
+            "type": "u64"
+          },
+          {
+            "name": "max_per_period",
+            "type": "u64"
+          },
+          {
+            "name": "period_seconds",
+            "type": "i64"
+          },
+          {
+            "name": "active",
+            "type": "bool"
+          }
+        ]
+      }
+    },
+    {
+      "name": "Config",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "admin",
+            "type": "pubkey"
+          },
+          {
+            "name": "arbiter",
+            "type": "pubkey"
+          },
+          {
+            "name": "treasury",
+            "type": "pubkey"
+          },
+          {
+            "name": "fee_bps",
+            "type": "u16"
+          },
+          {
+            "name": "allowed_mint",
+            "type": "pubkey"
+          },
+          {
+            "name": "dispute_period",
+            "type": "i64"
+          },
+          {
+            "name": "bump",
+            "type": "u8"
+          }
+        ]
+      }
+    },
+    {
+      "name": "ConfigUpdated",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "admin",
+            "type": "pubkey"
+          },
+          {
+            "name": "arbiter",
+            "type": "pubkey"
+          },
+          {
+            "name": "treasury",
+            "type": "pubkey"
+          },
+          {
+            "name": "fee_bps",
+            "type": "u16"
+          },
+          {
+            "name": "allowed_mint",
+            "type": "pubkey"
+          },
+          {
+            "name": "dispute_period",
+            "type": "i64"
+          }
+        ]
+      }
+    },
+    {
+      "name": "DisputeOpened",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "job",
+            "type": "pubkey"
+          },
+          {
+            "name": "client",
+            "type": "pubkey"
+          },
+          {
+            "name": "dispute_deadline",
+            "type": "i64"
+          }
+        ]
+      }
+    },
+    {
+      "name": "DisputeResolved",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "job",
+            "type": "pubkey"
+          },
+          {
+            "name": "researcher_bps",
+            "type": "u16"
+          },
+          {
+            "name": "researcher_amount",
+            "type": "u64"
+          },
+          {
+            "name": "client_amount",
+            "type": "u64"
+          },
+          {
+            "name": "fee",
+            "type": "u64"
+          },
+          {
+            "name": "timed_out",
+            "type": "bool"
+          }
+        ]
+      }
+    },
+    {
+      "name": "EvidenceSubmitted",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "job",
+            "type": "pubkey"
+          },
+          {
+            "name": "researcher",
+            "type": "pubkey"
+          },
+          {
+            "name": "evidence_sha256",
+            "type": {
+              "array": [
+                "u8",
+                32
+              ]
+            }
+          },
+          {
+            "name": "review_deadline",
+            "type": "i64"
+          }
+        ]
+      }
+    },
+    {
+      "name": "JobAccepted",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "job",
+            "type": "pubkey"
+          },
+          {
+            "name": "researcher",
+            "type": "pubkey"
+          }
+        ]
+      }
+    },
+    {
+      "name": "JobAccount",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "client",
+            "type": "pubkey"
+          },
+          {
+            "name": "researcher",
+            "type": "pubkey"
+          },
+          {
+            "name": "mint",
+            "type": "pubkey"
+          },
+          {
+            "name": "vault",
+            "type": "pubkey"
+          },
+          {
+            "name": "amount",
+            "type": "u64"
+          },
+          {
+            "name": "deadline",
+            "type": "i64"
+          },
+          {
+            "name": "review_period",
+            "type": "i64"
+          },
+          {
+            "name": "review_deadline",
+            "type": "i64"
+          },
+          {
+            "name": "scope_hash",
+            "type": {
+              "array": [
+                "u8",
+                32
+              ]
+            }
+          },
+          {
+            "name": "evidence_sha256",
+            "type": {
+              "array": [
+                "u8",
+                32
+              ]
+            }
+          },
+          {
+            "name": "status",
+            "type": {
+              "defined": {
+                "name": "JobStatus"
+              }
+            }
+          },
+          {
+            "name": "created_by_agent",
+            "type": "bool"
+          },
+          {
+            "name": "bump",
+            "type": "u8"
+          },
+          {
+            "name": "vault_bump",
+            "type": "u8"
+          },
+          {
+            "name": "arbiter",
+            "type": "pubkey"
+          },
+          {
+            "name": "rent_payer",
+            "type": "pubkey"
+          },
+          {
+            "name": "fee_bps",
+            "type": "u16"
+          },
+          {
+            "name": "dispute_period",
+            "type": "i64"
+          },
+          {
+            "name": "dispute_deadline",
+            "type": "i64"
+          },
+          {
+            "name": "job_id",
+            "type": "string"
+          }
+        ]
+      }
+    },
+    {
+      "name": "JobCreated",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "job",
+            "type": "pubkey"
+          },
+          {
+            "name": "client",
+            "type": "pubkey"
+          },
+          {
+            "name": "researcher",
+            "type": "pubkey"
+          },
+          {
+            "name": "mint",
+            "type": "pubkey"
+          },
+          {
+            "name": "amount",
+            "type": "u64"
+          },
+          {
+            "name": "deadline",
+            "type": "i64"
+          },
+          {
+            "name": "scope_hash",
+            "type": {
+              "array": [
+                "u8",
+                32
+              ]
+            }
+          },
+          {
+            "name": "arbiter",
+            "type": "pubkey"
+          },
+          {
+            "name": "fee_bps",
+            "type": "u16"
+          },
+          {
+            "name": "created_by_agent",
+            "type": "bool"
+          }
+        ]
+      }
+    },
+    {
+      "name": "JobRefunded",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "job",
+            "type": "pubkey"
+          },
+          {
+            "name": "client",
+            "type": "pubkey"
+          },
+          {
+            "name": "amount",
+            "type": "u64"
+          },
+          {
+            "name": "cancelled",
+            "type": "bool"
+          }
+        ]
+      }
+    },
+    {
+      "name": "JobReleased",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "job",
+            "type": "pubkey"
+          },
+          {
+            "name": "researcher",
+            "type": "pubkey"
+          },
+          {
+            "name": "researcher_amount",
+            "type": "u64"
+          },
+          {
+            "name": "fee",
+            "type": "u64"
+          },
+          {
+            "name": "auto_released",
+            "type": "bool"
+          }
+        ]
+      }
+    },
+    {
+      "name": "JobStatus",
+      "type": {
+        "kind": "enum",
+        "variants": [
+          {
+            "name": "Open"
+          },
+          {
+            "name": "InProgress"
+          },
+          {
+            "name": "EvidenceSubmitted"
+          },
+          {
+            "name": "Disputed"
+          },
+          {
+            "name": "Completed"
+          },
+          {
+            "name": "Resolved"
+          },
+          {
+            "name": "Refunded"
+          },
+          {
+            "name": "Cancelled"
+          }
+        ]
+      }
+    },
+    {
+      "name": "ResearcherAssigned",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "job",
+            "type": "pubkey"
+          },
+          {
+            "name": "researcher",
+            "type": "pubkey"
+          }
+        ]
+      }
+    }
+  ]
+}

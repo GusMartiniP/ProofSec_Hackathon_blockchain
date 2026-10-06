@@ -1,0 +1,21 @@
+{
+  "name": "proofsec",
+  "private": true,
+  "description": "Atalhos para rodar as partes do ProofSec a partir da raiz do repositório",
+  "scripts": {
+    "setup": "npm --prefix frontend install && npm --prefix contracts install && npm --prefix agent install",
+    "dev": "npm --prefix frontend run dev",
+    "build:web": "npm --prefix frontend run build",
+    "test:backend": "cd backend-serverless && python -m unittest discover -s tests -v",
+    "agent:demo": "python agent/agent.py",
+    "agent:executor": "npm --prefix agent run executor",
+    "idl:preview": "python contracts/scripts/gen_idl_preview.py",
+    "test:agent": "npm --prefix agent test",
+    "test:meta": "cd agent && npx tsx --test ../tests/meta-integrity.test.ts ../tests/key-binding.test.ts",
+    "build:agent-lambda": "npm --prefix agent run build:lambda",
+    "check:template": "python backend-serverless/scripts/check_template.py backend-serverless/template.yaml --functions-dir backend-serverless/functions",
+    "check:template:agent": "python backend-serverless/scripts/check_template.py agent/template.yaml",
+    "check:templates": "npm run check:template && npm run check:template:agent",
+    "preflight:local": "npm run test:backend && npm run check:templates && npm run test:agent && npm --prefix agent run typecheck && npm --prefix agent run check:lambda-bundle && npm --prefix frontend run typecheck && npm run build:web && npm run idl:preview -- --check"
+  }
+}

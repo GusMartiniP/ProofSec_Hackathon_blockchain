@@ -1,0 +1,23 @@
+# Dependências e builds
+node_modules/
+.next/
+out/
+target/
+.anchor/
+test-ledger/
+.aws-sam/
+__pycache__/
+*.pyc
+
+# Segredos e carteiras (AGENTS.md §7) — nunca versionar
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+*.seed
+id.json
+wallet.json
+credentials.json
+agent/agent-keypair.json
+*-keypair.json

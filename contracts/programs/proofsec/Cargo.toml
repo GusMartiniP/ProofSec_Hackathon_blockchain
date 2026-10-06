@@ -1,0 +1,26 @@
+[package]
+name = "proofsec"
+version = "0.3.0"
+description = "ProofSec - Programmable security escrow with optimistic release, disputes and on-chain agent spending policy"
+edition = "2021"
+
+[lib]
+crate-type = ["cdylib", "lib"]
+name = "proofsec"
+
+[features]
+default = []
+cpi = ["no-entrypoint"]
+no-entrypoint = []
+no-idl = []
+no-log-ix-name = []
+# Obrigatório desde o Anchor 0.30 para `anchor build` gerar o IDL.
+idl-build = ["anchor-lang/idl-build", "anchor-spl/idl-build"]
+
+[dependencies]
+# init-if-needed: usado só em set_agent_policy (PDA derivado do dono, com checagem de dono)
+anchor-lang = { version = "1.2.0", features = ["init-if-needed"] }
+anchor-spl = "1.2.0"
+
+[lints.rust]
+unexpected_cfgs = { level = "warn", check-cfg = ['cfg(target_os, values("solana"))'] }
