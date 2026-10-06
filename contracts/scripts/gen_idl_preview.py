@@ -121,6 +121,10 @@ INSTRUCTIONS = [
     ("resolve_dispute_timeout", "ResolveDisputeTimeout", [acc("config")] + DISPUTE_TAIL, []),
     ("refund_expired", "RefundJob", REFUND_ACCOUNTS, []),
     ("cancel_job", "RefundJob", REFUND_ACCOUNTS, []),
+    ("recover_stuck_funds", "RecoverStuckFunds", [
+        acc("job_account", w=True), acc("vault", w=True), acc("mint"), acc("client"),
+        acc("client_token_account", w=True), acc("rent_payer", w=True), TOK,
+    ], []),
 ]
 
 TYPES = {
@@ -134,7 +138,8 @@ TYPES = {
         ("scope_hash", H32), ("evidence_sha256", H32),
         ("status", {"defined": {"name": "JobStatus"}}), ("created_by_agent", "bool"),
         ("bump", "u8"), ("vault_bump", "u8"), ("arbiter", "pubkey"), ("rent_payer", "pubkey"),
-        ("fee_bps", "u16"), ("dispute_period", "i64"), ("dispute_deadline", "i64"), ("job_id", "string"),
+        ("fee_bps", "u16"), ("dispute_period", "i64"), ("dispute_deadline", "i64"), ("treasury", "pubkey"),
+        ("job_id", "string"),
     ],
     "AgentPolicy": [
         ("owner", "pubkey"), ("agent", "pubkey"), ("max_per_job", "u64"), ("max_per_period", "u64"),
@@ -166,6 +171,7 @@ TYPES = {
         ("client_amount", "u64"), ("fee", "u64"), ("timed_out", "bool"),
     ],
     "JobRefunded": [("job", "pubkey"), ("client", "pubkey"), ("amount", "u64"), ("cancelled", "bool")],
+    "JobRecovered": [("job", "pubkey"), ("client", "pubkey"), ("amount", "u64"), ("from_dispute", "bool")],
     "AgentPolicyUpdated": [
         ("policy", "pubkey"), ("owner", "pubkey"), ("agent", "pubkey"), ("max_per_job", "u64"),
         ("max_per_period", "u64"), ("period_seconds", "i64"), ("active", "bool"),
@@ -174,7 +180,7 @@ TYPES = {
 ACCOUNTS = ["AgentPolicy", "Config", "JobAccount"]
 EVENTS = [
     "AgentPolicyUpdated", "ConfigUpdated", "DisputeOpened", "DisputeResolved", "EvidenceSubmitted",
-    "JobAccepted", "JobCreated", "JobRefunded", "JobReleased", "ResearcherAssigned",
+    "JobAccepted", "JobCreated", "JobRecovered", "JobRefunded", "JobReleased", "ResearcherAssigned",
 ]
 JOB_STATUS = [
     "Open", "InProgress", "EvidenceSubmitted", "Disputed", "Completed", "Resolved", "Refunded", "Cancelled",

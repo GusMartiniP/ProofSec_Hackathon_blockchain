@@ -61,7 +61,7 @@ primeiro build real (PS-17).
 | PS-34 | Low | `evidence.download_url` sem `s3:ListBucket`: objeto ausente vira 403 do S3 → 503 e log de erro | `check:template` (IAM derivado do código; mutação detectada) | Corrigido no código · revisão independente pendente |
 | PS-35 | Low | regra `Demo` do EventBridge sem guarda de stage | `test_demo_events_only_create_proposals_in_dev_stage` | Corrigido no código · revisão independente pendente |
 | PS-36 | Low | `apply_onchain`/`mark_executed`/`mark_rejected` regravam o item inteiro lido antes (perda de candidatura, snapshot antigo da chain) | — | **Aberto** (aceitável no MVP) |
-| PS-37 | Medium | contrato: `config.treasury` não é congelada no job e liquidações exigem ATAs (tesouraria, pesquisador, cliente) existentes e não congeladas; sem saída se uma delas travar | — | **Aberto** · ADR-021 proposta (Codex; sem toolchain aqui) |
+| PS-37 | Medium | contrato: `config.treasury` não é congelada no job e liquidações exigem ATAs (tesouraria, pesquisador, cliente) existentes e não congeladas; sem saída se uma delas travar | `contracts/tests/proofsec.ts` (5 testes PS-37; 3 mutações detectadas) | Corrigido na branch `fix/ps-37-treasury-freeze` · ADR-021 · revisão do Codex pendente |
 | PS-38 | Medium | chaves públicas de criptografia vêm do backend sem prova de posse: um backend comprometido troca a chave do cliente/árbitro e lê relatórios (INV-6) | `TestReview25to31Regressions` (2 testes) e `tests/key-binding.test.ts` (3, fixture cruzada Python↔TS) | Corrigido no código · ADR-022 · revisão independente pendente |
 | PS-39 | Medium | qualquer carteira com `AgentPolicy` apontando para a chave do agente gasta SOL do agente (rent do `JobAccount` nunca devolvido) | `core.test.ts` (allowlist) e `test_propose_outside_dev_is_manual_unless_company_wallet` | Corrigido fora da chain · ADR-023 · rent do `JobAccount` aceito (ADR-021) |
 | PS-40 | Medium | `GET /jobs` devolve todos os jobs, com `scopeDocument` de até ~75 KB cada, numa só resposta (limite de 6 MB) e expõe alvos de pentest publicamente | `TestReview25to31Regressions` (5 testes; 4 mutações detectadas) | Corrigido no código · ADR-020 · revisão independente pendente |
@@ -237,7 +237,7 @@ leitura.
   INV-4 (saída por regras públicas) e depende do admin. Remediação: congelar a tesouraria no
   job (campo novo antes de `job_id`, ADR-018; o programa ainda não foi implantado) e prever uma
   saída pública final (ex.: reembolso ao cliente após `dispute_deadline` + carência) para ATAs
-  congeladas. Verificação: testes com ATA congelada. Dono: Codex. Status: aberto (ADR-021 proposta). Em devnet o
+  congeladas. Verificação: testes com ATA congelada. Dono: Codex. Status: corrigido na branch (ADR-021). Em devnet o
   mint de teste não tem freeze, então o risco é de mainnet.
 - **PS-38 · Medium · INV-6 · `api.ts:getEncryptionKey`, `JobCard.tsx:152-160`, `users.py`:** o
   pesquisador cifra o relatório para as chaves que o backend devolve, sem prova de que pertencem
@@ -296,10 +296,15 @@ leitura.
   `propose` fora do dev só autônomo para a `CompanyWallet`. Residual aceito: o rent do
   `JobAccount` continua sem devolução para empresas permitidas. Fechar a conta quebraria o
   espelho do indexador (ver ADR-021).
-- **PS-37 → ADR-021 (Proposta, não implementado).** É Rust em `contracts/` e este ambiente não
-  tem `anchor`/`cargo`: editar sem compilar poderia quebrar o primeiro build do Codex, e a
-  mudança de layout atinge `solana.py`, `gen_idl_preview.py` e as fixtures. Fica para o Codex
-  com o toolchain, na ordem do ADR.
+- **PS-37 → ADR-021 (implementado na branch `fix/ps-37-treasury-freeze`).** Com o toolchain
+  instalado no WSL (Rust 1.99, Agave 3.1.10, Anchor 1.2.0, Surfpool 1.6.0): `anchor build` limpo
+  (SBPF v3, IDL real copiado para frontend e agente), `anchor test` com o validator padrão:
+  **34 passando, 0 falhando**, incluindo os testes antigos de relógio (PS-02 etc.) e 5 novos do
+  PS-37. Este foi o primeiro build e a primeira execução real da suíte do contrato (PS-17
+  parcial: faltam `sam validate`/`sam build`). Mutações no contrato detectadas: tesouraria da
+  config em `approve_and_release`, recuperação sem carência e recuperação em qualquer estado.
+  O validator legado (`solana-test-validator` 3.1.10) não carrega SBPF v3 ("Program is not
+  deployed"); com `anchor build --arch v0` ele roda 27 testes e deixa 7 pendentes.
 
 **Observações (Info, sem ID):** a taxa de throttling por rota é global, então um cliente esgota o
 login de todos (backlog CloudFront+WAF já registrado); `claim_after_review` só aceita o

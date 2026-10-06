@@ -14,6 +14,7 @@ import {
   approve,
   createAssociatedTokenAccountIdempotentInstruction,
   createMint,
+  freezeAccount,
   getAccount,
   getAssociatedTokenAddressSync,
   getOrCreateAssociatedTokenAccount,
@@ -185,8 +186,8 @@ describe("proofsec", () => {
       clientTokenAccount: ata(j.mint, j.client),
       researcher: j.researcher,
       researcherTokenAccount: ata(j.mint, j.researcher),
-      treasury: treasury.publicKey,
-      treasuryTokenAccount: ata(j.mint, treasury.publicKey),
+      treasury: j.treasury ?? treasury.publicKey,
+      treasuryTokenAccount: ata(j.mint, j.treasury ?? treasury.publicKey),
       rentPayer: j.rentPayer,
       tokenProgram: TOKEN_PROGRAM_ID,
     };
@@ -250,6 +251,23 @@ describe("proofsec", () => {
       .rpc();
   }
 
+  async function recoverTx(id: string, overrides: Record<string, PublicKey> = {}) {
+    const a = await settleAccounts(id);
+    return P.recoverStuckFunds()
+      .accountsPartial({
+        jobAccount: a.jobAccount,
+        vault: a.vault,
+        mint: a.mint,
+        client: a.client,
+        clientTokenAccount: ata(a.mint, a.client),
+        rentPayer: a.rentPayer,
+        tokenProgram: TOKEN_PROGRAM_ID,
+        ...overrides,
+      })
+      .preInstructions(ataIxs(a.mint, [a.client]))
+      .rpc(); // sem signer de instrução: qualquer pessoa chama
+  }
+
   function configArgs(over: Partial<{ arbiter: PublicKey; treasury: PublicKey; fee: number; mint: PublicKey; dispute: number }> = {}) {
     return [
       over.arbiter ?? arbiter.publicKey,
@@ -265,6 +283,24 @@ describe("proofsec", () => {
       .accountsPartial({ config: configPda, admin: signer.publicKey })
       .signers(signer === admin ? [] : [signer])
       .rpc();
+  }
+
+  /** Roda `fn` com um mint cuja freeze authority é o admin (como o USDC real) liberado na config. */
+  async function withFreezableMint<T>(fn: (m: PublicKey) => Promise<T>): Promise<T> {
+    const fm = await createMint(conn, admin, admin.publicKey, admin.publicKey, DECIMALS);
+    const cAta = (await getOrCreateAssociatedTokenAccount(conn, admin, fm, client.publicKey)).address;
+    await mintTo(conn, admin, fm, cAta, admin, units(1_000));
+    await updateConfig({ mint: fm });
+    try {
+      return await fn(fm);
+    } finally {
+      await updateConfig({});
+    }
+  }
+
+  async function freezeAtaOf(owner: PublicKey, m: PublicKey) {
+    const a = (await getOrCreateAssociatedTokenAccount(conn, admin, m, owner)).address;
+    await freezeAccount(conn, admin, a, m, admin);
   }
 
   // ------------------------------------------------------------------ setup
@@ -527,6 +563,50 @@ describe("proofsec", () => {
   });
 
   // ==================================================================
+  describe("PS-37: tesouraria congelada e recuperação de último recurso", () => {
+    it("PS-37 regression: trocar a tesouraria da config não redireciona a taxa de jobs existentes", async () => {
+      const id = await readyForReview({ amount: 100, review: 3600 });
+      assert.ok((await job(id)).treasury.equals(treasury.publicKey), "tesouraria gravada no job");
+      await updateConfig({ treasury: attacker.publicKey });
+      try {
+        const attackerAta = (await getOrCreateAssociatedTokenAccount(conn, admin, mint, attacker.publicKey)).address;
+        await expectError(
+          approveTx(id, { treasury: attacker.publicKey, treasuryTokenAccount: attackerAta }),
+          "ConstraintAddress"
+        );
+        const before = await balance(ata(mint, treasury.publicKey));
+        await approveTx(id);
+        assert.equal((await balance(ata(mint, treasury.publicKey))) - before, (units(100) * FEE_BPS) / 10_000);
+        assert.equal(await balance(attackerAta), 0, "a nova tesouraria não recebe a taxa do job antigo");
+
+        const novo = await createJob();
+        assert.ok((await job(novo)).treasury.equals(attacker.publicKey), "jobs novos usam a tesouraria nova");
+      } finally {
+        await updateConfig({});
+      }
+    });
+
+    it("recover_stuck_funds só vale para evidência submetida ou disputa", async () => {
+      const open = await createJob();
+      await expectError(recoverTx(open), "CannotRecover");
+      const working = await createJob();
+      await accept(working);
+      await expectError(recoverTx(working), "CannotRecover");
+    });
+
+    it("ATA do pesquisador congelada trava a aprovação; a recuperação respeita a carência", async () => {
+      await withFreezableMint(async (fm) => {
+        const id = await readyForReview({ m: fm, amount: 10, review: 3600 });
+        await freezeAtaOf(researcher.publicKey, fm);
+        await expectError(approveTx(id), "0x11"); // spl-token AccountFrozen
+        await expectError(recoverTx(id), "RecoveryGraceNotElapsed");
+        assert.ok((await job(id)).status.evidenceSubmitted, "estado intacto");
+        assert.equal(await balance(ata(fm, client.publicKey)), units(1_000 - 10));
+      });
+    });
+  });
+
+  // ==================================================================
   describe("agente de IA", () => {
     const policy = () => policyPda(client.publicKey);
 
@@ -669,6 +749,46 @@ describe("proofsec", () => {
       await refundTx("refundExpired", working);
       assert.equal((await balance(clientAta)) - before, units(10));
       assert.ok((await job(working)).status.refunded);
+    });
+
+    it("PS-37: após a carência qualquer um devolve ao cliente o saldo preso por ATA congelada", async () => {
+      await withFreezableMint(async (fm) => {
+        const id = await readyForReview({ m: fm, amount: 10, review: 60 });
+        await freezeAtaOf(researcher.publicKey, fm);
+        await timeTravel(61);
+        await expectError(claimTx(id), "0x11");
+        await expectError(recoverTx(id), "RecoveryGraceNotElapsed");
+        await timeTravel(30 * 86_400 + 1);
+
+        // o destino é sempre a ATA do cliente do job (INV-5)
+        const attackerAta = (await getOrCreateAssociatedTokenAccount(conn, admin, fm, attacker.publicKey)).address;
+        await expectError(recoverTx(id, { clientTokenAccount: attackerAta }), "ConstraintTokenOwner");
+
+        const cAta = ata(fm, client.publicKey);
+        const before = await balance(cAta);
+        const vault = (await job(id)).vault;
+        await recoverTx(id);
+        assert.equal((await balance(cAta)) - before, units(10));
+        assert.isNull(await conn.getAccountInfo(vault), "vault fechado");
+        assert.ok((await job(id)).status.refunded);
+      });
+    });
+
+    it("PS-37: disputa travada pelo timeout 50/50 (ATA congelada) também tem saída após a carência", async () => {
+      await withFreezableMint(async (fm) => {
+        const id = await readyForReview({ m: fm, amount: 10, review: 3600 });
+        await openDisputeTx(id);
+        await freezeAtaOf(researcher.publicKey, fm);
+        await timeTravel(DISPUTE_PERIOD + 1);
+        await expectError(timeoutTx(id), "0x11");
+        await expectError(recoverTx(id), "RecoveryGraceNotElapsed");
+        await timeTravel(30 * 86_400 + 1);
+        const cAta = ata(fm, client.publicKey);
+        const before = await balance(cAta);
+        await recoverTx(id);
+        assert.equal((await balance(cAta)) - before, units(10));
+        assert.ok((await job(id)).status.refunded);
+      });
     });
 
     it("política do agente reinicia o gasto quando o período vira", async () => {

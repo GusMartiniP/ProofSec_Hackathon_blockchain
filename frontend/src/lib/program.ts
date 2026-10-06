@@ -44,6 +44,8 @@ export interface OnchainJob {
   disputeDeadline: number;
   /** Quem pagou o rent e recebe de volta no fechamento (PS-14). */
   rentPayer: string;
+  /** Tesouraria congelada na criação (PS-37): a taxa só vai para a ATA dela. */
+  treasury: string;
 }
 
 export interface PlatformConfig {
@@ -136,6 +138,7 @@ function parseJob(pda: PublicKey, a: any): OnchainJob {
     disputePeriod: num(a.disputePeriod),
     disputeDeadline: num(a.disputeDeadline),
     rentPayer: a.rentPayer.toBase58(),
+    treasury: a.treasury.toBase58(),
   };
 }
 
@@ -268,12 +271,16 @@ export async function submitEvidence(program: Program<Idl>, job: OnchainJob, sha
     .rpc();
 }
 
-/** Contas comuns das liquidações. O árbitro e o rent_payer vêm do próprio job (PS-04, PS-14). */
-function settleBase(job: OnchainJob, config: PlatformConfig) {
+/**
+ * Contas comuns das liquidações. O árbitro, o rent_payer e a tesouraria vêm do próprio job
+ * (PS-04, PS-14, PS-37): trocar a tesouraria da config não afeta jobs existentes.
+ * `config` só é usado para a conta `config` das instruções.
+ */
+function settleBase(job: OnchainJob, _config: PlatformConfig) {
   if (!job.researcher) throw new Error("job sem pesquisador");
   const mint = new PublicKey(job.mint);
   const researcher = new PublicKey(job.researcher);
-  const treasury = new PublicKey(config.treasury);
+  const treasury = new PublicKey(job.treasury);
   return {
     mint,
     researcher,
@@ -369,6 +376,20 @@ function refundAccounts(job: OnchainJob) {
 export async function refundExpired(program: Program<Idl>, job: OnchainJob) {
   const { mint, client, accounts } = refundAccounts(job);
   return m(program).refundExpired().accountsPartial(accounts).preInstructions(ensureAtas(me(program), mint, [client])).rpc();
+}
+
+/**
+ * Último recurso (PS-37 / INV-4): depois da carência, qualquer pessoa devolve o saldo ao cliente
+ * quando as contas de token da liquidação ficaram inutilizáveis. O destino é a ATA do cliente.
+ */
+export async function recoverStuckFunds(program: Program<Idl>, job: OnchainJob) {
+  const { mint, client, accounts } = refundAccounts(job);
+  const { client: _signer, ...rest } = accounts; // sem signer: `client` é só a conta do cliente
+  return m(program)
+    .recoverStuckFunds()
+    .accountsPartial({ ...rest, client })
+    .preInstructions(ensureAtas(me(program), mint, [client]))
+    .rpc();
 }
 
 export async function cancelJob(program: Program<Idl>, job: OnchainJob) {

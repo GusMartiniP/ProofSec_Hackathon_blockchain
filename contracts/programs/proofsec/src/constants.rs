@@ -27,5 +27,9 @@ pub const MIN_AGENT_REVIEW_PERIOD: i64 = 72 * 60 * 60;
 pub const MIN_DISPUTE_PERIOD: i64 = 60;
 pub const MAX_DISPUTE_PERIOD: i64 = 30 * 24 * 60 * 60;
 
+/// Carência da recuperação de último recurso (PS-37 / ADR-021): depois do fim da janela de revisão
+/// (ou do prazo do árbitro) mais este tempo, qualquer pessoa devolve o saldo do vault ao cliente.
+pub const RECOVERY_GRACE_PERIOD: i64 = 30 * 24 * 60 * 60;
+
 /// Divisão aplicada quando o árbitro não decide dentro do prazo: 50% para cada lado.
 pub const DISPUTE_TIMEOUT_RESEARCHER_BPS: u64 = 5_000;

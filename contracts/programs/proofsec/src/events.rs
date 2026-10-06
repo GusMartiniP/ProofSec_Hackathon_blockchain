@@ -81,6 +81,16 @@ pub struct JobRefunded {
     pub cancelled: bool,
 }
 
+/// Recuperação de último recurso (PS-37): o saldo voltou inteiro ao cliente depois da carência.
+#[event]
+pub struct JobRecovered {
+    pub job: Pubkey,
+    pub client: Pubkey,
+    pub amount: u64,
+    /// `true` se o job estava em disputa; `false` se estava com evidência submetida.
+    pub from_dispute: bool,
+}
+
 #[event]
 pub struct AgentPolicyUpdated {
     pub policy: Pubkey,

@@ -60,4 +60,8 @@ pub enum ProofSecError {
     DisputeWindowOpen,
     #[msg("Autoridade inválida (chave vazia).")]
     InvalidAuthority,
+    #[msg("Este estado não permite a recuperação de último recurso.")]
+    CannotRecover,
+    #[msg("A carência da recuperação de último recurso ainda não terminou.")]
+    RecoveryGraceNotElapsed,
 }

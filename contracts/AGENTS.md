@@ -40,7 +40,7 @@ only one `#[error_code]` block per program.
 client 8 · researcher 40 · mint 72 · vault 104 · amount 136 · deadline 144 ·
 review_period 152 · review_deadline 160 · scope_hash 168 · evidence 200 ·
 status 232 · by_agent 233 · bump 234 · vault_bump 235 · arbiter 236 · rent_payer 268 ·
-fee_bps 300 · dispute_period 302 · dispute_deadline 310 · job_id 318 (u32 length + bytes, max 32).
+fee_bps 300 · dispute_period 302 · dispute_deadline 310 · treasury 318 · job_id 350 (u32 length + bytes, max 32).
 `Config`: admin 8 · arbiter 40 · treasury 72 · fee_bps 104 · allowed_mint 106 · dispute_period 138 · bump 146.
 
 - Never reorder existing fields. New **fixed-size** fields go immediately **before** `job_id`

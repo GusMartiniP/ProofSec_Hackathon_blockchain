@@ -5,7 +5,7 @@ import { useWallet } from "@solana/wallet-adapter-react";
 import { CheckCircle2, Download, FileCheck, Gavel, ShieldAlert, Upload, XCircle } from "lucide-react";
 import { useProofSec, type JobView } from "@/hooks/useProofSec";
 import { api } from "@/lib/api";
-import { HAS_API } from "@/lib/config";
+import { HAS_API, RECOVERY_GRACE_SECONDS } from "@/lib/config";
 import { baseToUsdc, sha256Hex, toArrayBuffer } from "@/lib/encoding";
 import { decryptReport, deriveEncryptionKeypair, encryptReport, envelopeKeyVersion } from "@/lib/evidence";
 import {
@@ -15,6 +15,7 @@ import {
   cancelJob,
   claimAfterReview,
   openDispute,
+  recoverStuckFunds,
   refundExpired,
   resolveDispute,
   resolveDisputeTimeout,
@@ -34,6 +35,14 @@ export function JobCard({ job }: { job: JobView }) {
   const deadlinePassed = now > job.deadline;
   const reviewOpen = job.status === "EVIDENCE_SUBMITTED" && now <= job.reviewDeadline;
   const disputeExpired = job.status === "DISPUTED" && job.disputeDeadline > 0 && now > job.disputeDeadline;
+  // PS-37: depois da carência, qualquer pessoa devolve ao cliente um job que ninguém liquidou
+  const recoverAfter =
+    job.status === "DISPUTED" && job.disputeDeadline > 0
+      ? job.disputeDeadline + RECOVERY_GRACE_SECONDS
+      : job.status === "EVIDENCE_SUBMITTED" && job.reviewDeadline > 0
+        ? job.reviewDeadline + RECOVERY_GRACE_SECONDS
+        : null;
+  const canRecover = recoverAfter !== null && now > recoverAfter;
   // PS-01: só o pesquisador atribuído pelo cliente aceita
   const canAccept = job.status === "OPEN" && isResearcher && !deadlinePassed;
   const canApply = HAS_API && job.status === "OPEN" && !job.researcher && !!wallet && !isClient && !deadlinePassed;
@@ -137,6 +146,14 @@ export function JobCard({ job }: { job: JobView }) {
           </Button>
         )}
       </div>
+
+      {canRecover && !!wallet && (
+        <div className="flex justify-end">
+          <Button variant="ghost" busy={busy === "recover"} onClick={() => act("recover", "Recuperando fundos (carência vencida)", () => recoverStuckFunds(program, job))}>
+            Recuperar fundos para o cliente (último recurso)
+          </Button>
+        </div>
+      )}
 
       {isResearcher && job.status === "IN_PROGRESS" && (
         <EvidenceSubmit

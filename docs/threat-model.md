@@ -45,7 +45,7 @@ comprometido · site de phishing.
 | T4 | Pesquisador ocupa jobs abertos | DoS | Candidaturas via API e atribuição obrigatória on-chain pelo cliente (`assign_researcher`, PS-01, ADR-013) | ✅ |
 | T5 | Árbitro inativo trava a disputa | DoS | `dispute_deadline` + `resolve_dispute_timeout` com split 50/50 (PS-02, ADR-014) | ✅ |
 | T6 | Front-run da inicialização da config | Spoofing | `initialize_config` restrita à upgrade authority via `ProgramData` (PS-03) | ✅ |
-| T7 | Admin muda taxa ou árbitro no meio do job | Tampering | Termos congelados na criação do `JobAccount` (`fee_bps`, `arbiter`, `dispute_period`, PS-04) | ✅ |
+| T7 | Admin muda taxa, árbitro ou tesouraria no meio do job | Tampering | Termos congelados na criação do `JobAccount` (`fee_bps`, `arbiter`, `dispute_period`, `treasury`; PS-04, PS-37) | ✅ |
 | T8 | Prompt injection no alerta muda o orçamento | Tampering | Policy Engine determinístico com tabela fixa e schema estrito (INV-3) | ✅ |
 | T9 | Backend comprometido gera propostas e drena até o teto | Elevation | Limites on-chain (`AgentPolicy`), jobs sem pesquisador pré-atribuído, revisão ≥ 72h e alertas SNS (PS-05) | ✅ |
 | T10 | Chave do executor vaza | Spoofing | Limites da `AgentPolicy` on-chain + kill switch e revogação de delegate (runbook) | ✅ |
@@ -58,6 +58,7 @@ comprometido · site de phishing.
 | T17 | XSS rouba a sessão | Info disclosure | React escapa dados + CSP e headers de segurança em `next.config.mjs` (PS-12) | ✅ (host pendente se estático) |
 | T18 | RPC fora do ar na demo | DoS | Fallback automático de RPC no backend e executor (PS-13) + modo só on-chain | ✅ (chaveamento na UI pendente) |
 | T19 | Replay de login | Spoofing | Nonce de uso único com expiração e deleção atômica no DynamoDB | ✅ |
+| T20 | ATA de pesquisador, cliente ou tesouraria congelada pelo emissor do mint trava a liquidação | DoS | `recover_stuck_funds`: depois de 30 dias de carência qualquer um devolve o saldo ao cliente (PS-37, ADR-021). Se a ATA do próprio cliente estiver congelada não há saída on-chain: decisão do emissor | ✅ (residual: ATA do cliente) |
 | T20 | Token falso exibido como USDC | Spoofing | `allowed_mint` registrado na `Config` e validado on-chain | ✅ |
 | T21 | Upgrade malicioso do programa | Elevation | Upgrade authority protegida (multisig Squads em produção) | Produção |
 

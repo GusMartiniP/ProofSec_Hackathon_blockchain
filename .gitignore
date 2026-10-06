@@ -21,3 +21,5 @@ wallet.json
 credentials.json
 agent/agent-keypair.json
 *-keypair.json
+nvidia_api.txt
+*api*.txt

@@ -9,7 +9,7 @@ pub struct Config {
     pub admin: Pubkey,
     /// Árbitro padrão para jobs NOVOS (cada job guarda o seu; PS-04).
     pub arbiter: Pubkey,
-    /// Carteira que recebe a taxa da plataforma (a ATA dela recebe os tokens).
+    /// Carteira que recebe a taxa da plataforma em jobs NOVOS (cada job guarda a sua; PS-37).
     pub treasury: Pubkey,
     /// Taxa padrão para jobs NOVOS, em basis points sobre o valor pago ao pesquisador.
     pub fee_bps: u16,
@@ -60,8 +60,11 @@ pub struct JobAccount {
     pub dispute_period: i64, // 302
     /// Fim do prazo do árbitro (0 até abrir disputa).
     pub dispute_deadline: i64, // 310
+    /// Tesouraria congelada na criação do job (PS-37 / ADR-021): a taxa só vai para a ATA dela,
+    /// mesmo que o admin troque a tesouraria da `Config` depois.
+    pub treasury: Pubkey, // 318
     #[max_len(32)]
-    pub job_id: String, // 318 (u32 len + bytes)
+    pub job_id: String, // 350 (u32 len + bytes)
 }
 
 /// Política de gasto do agente de IA, imposta on-chain.
