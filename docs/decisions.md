@@ -320,3 +320,35 @@ resolver tudo). Qualquer uma pode ser revista por novo ADR.
 - **Operacional:** atualizar o §1 do `AGENTS.md`, `backend-serverless/AGENTS.md` e as
   referências ao Kiro no runbook depois da aprovação; trocar o perfil do MCP da AWS do root
   para o usuário do agente. Criar os usuários exige aprovação (IAM, §5).
+
+## ADR-025 — Experiência separada por papel: Empresa e Pesquisador (só UI, sem papel autoritativo) · Proposta
+
+- **Contexto:** hoje há uma tela única. As abas "Sou cliente" e "Sou pesquisador" apenas filtram a
+  lista, e o painel lateral (`CreateJobPanel`, `AgentPanel`) aparece para qualquer carteira, inclusive
+  para quem só quer ser pesquisador. O papel é deduzido por job (`wallet === job.client`,
+  `job.researcher`, `job.arbiter`); não existe papel no usuário nem no backend.
+- **Decisão proposta:**
+  1. Seletor de papel de **visão**, `Empresa` ou `Pesquisador`, no primeiro acesso e trocável a
+     qualquer momento no cabeçalho. Qualquer carteira pode usar os dois (o contrato não distingue).
+  2. **Empresa:** criar escrow, painel do agente de IA, candidaturas recebidas, atribuição, revisão,
+     aprovação, disputa. **Pesquisador:** vagas abertas, candidatura, aceite, envio do relatório
+     cifrado, ativação da chave de criptografia, reivindicação após a janela de revisão.
+  3. O papel escolhido fica em `localStorage` por carteira (sem backend nem mudança no contrato HTTP).
+     `JobCard` continua decidindo ações por `wallet === job.client/researcher/arbiter`; o papel só
+     escolhe o que se exibe. O árbitro ganha uma visão própria (jobs em `Disputed` onde `arbiter === wallet`).
+  4. `AdminSetup` aparece só para a carteira da upgrade authority, independente do papel.
+- **Motivo:** reduz ruído e erro de uso na demo (pesquisador não vê "Assinar e travar USDC") sem
+  tocar em fundos, IDL ou rotas.
+- **Alternativas:** (a) campo `role` em `UsersTable` com `PUT /users/me/profile`: persiste entre
+  dispositivos, mas muda o contrato HTTP (§4.3) e cria um dado que parece autoritativo; (b) rotas
+  separadas `/empresa` e `/pesquisador`: mais código e exige o fallback do export estático;
+  (c) manter a tela única (status atual).
+- **Segurança:** o papel **não autoriza nada** (INV-8, regra 1 do frontend): toda checagem continua
+  on-chain e no backend. Ocultar um botão não é controle de acesso; testar que forçar a chamada
+  fora do papel é recusada pelo programa e pela API. `localStorage` guarda só a preferência de
+  visão, sem token nem chave (a sessão segue em `sessionStorage`).
+- **Operacional:** só frontend (`page.tsx`, `CreateJobPanel`, `AgentPanel`, novo hook de papel).
+  Não exige deploy da AWS, só novo build do site. Evolução futura: perfil no backend (alternativa a)
+  se houver necessidade de reputação ou de ver o papel em outro dispositivo.
+- **Verificação:** teste de componente por papel (o pesquisador não renderiza criar escrow nem
+  agente); `tsc --noEmit` e `npm run build`; roteiro manual com duas carteiras.
