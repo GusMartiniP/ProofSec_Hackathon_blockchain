@@ -75,6 +75,7 @@ def apply_onchain(onchain: dict, item: dict | None) -> dict:
         "disputeDeadline": onchain["disputeDeadline"] or None,
         "researcherWallet": onchain["researcher"],
         "arbiterWallet": onchain["arbiter"],
+        "treasuryWallet": onchain["treasury"],
         "rentPayer": onchain["rentPayer"],
         "feeBps": onchain["feeBps"],
         "evidenceSha256": onchain["evidenceSha256"],

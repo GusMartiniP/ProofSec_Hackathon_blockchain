@@ -212,7 +212,7 @@ class TestDecoders(unittest.TestCase):
         data[232] = 99
         self.assertEqual(solana.decode_job(bytes(data))["status"], "UNKNOWN_99")
         data = bytearray(make_job_account("abc", b"\1" * 32))
-        data[322:325] = b"\xff\xfe\xfd"
+        data[354:357] = b"\xff\xfe\xfd"
         with self.assertRaises(UnicodeDecodeError):  # fetch_all_jobs captura este erro
             solana.decode_job(bytes(data))
 

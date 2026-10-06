@@ -205,11 +205,11 @@ def body_of(resp):
 
 def make_job_account(job_id, client, researcher=b"\0" * 32, status=0, evidence=b"\0" * 32,
                      scope_hash=b"\1" * 32, by_agent=True, arbiter=b"\4" * 32, rent_payer=b"\5" * 32,
-                     fee_bps=250, dispute_period=120, dispute_deadline=0):
+                     fee_bps=250, dispute_period=120, dispute_deadline=0, treasury=b"" * 32):
     data = solana.JOB_DISCRIMINATOR + client + researcher + b"\2" * 32 + b"\3" * 32
     data += struct.pack("<Qqqq", 350_000_000, 2_000_000_000, 3600, 0)
     data += scope_hash + evidence + bytes([status, int(by_agent), 254, 253])
-    data += arbiter + rent_payer + struct.pack("<Hqq", fee_bps, dispute_period, dispute_deadline)
+    data += arbiter + rent_payer + struct.pack("<Hqq", fee_bps, dispute_period, dispute_deadline) + treasury
     data += struct.pack("<I", len(job_id)) + job_id.encode()
     return data + b"\0" * (32 - len(job_id))
 
@@ -317,19 +317,22 @@ class TestSolanaDecode(Base):
         self.assertEqual((j["feeBps"], j["disputePeriod"], j["disputeDeadline"]), (250, 120, 1_700_000_000))
 
     def test_layout_matches_rust_offsets(self):
-        # Offsets documentados em state.rs: status 232, arbiter 236, rent_payer 268, fee 300, job_id 318
+        # Offsets documentados em state.rs: status 232, arbiter 236, rent_payer 268, fee 300,
+        # treasury 318 (PS-37), job_id 350
         data = make_job_account("x", b"\7" * 32, status=4)
         self.assertEqual(data[232], 4)
         self.assertEqual(data[236:268], b"\4" * 32)
         self.assertEqual(data[268:300], b"\5" * 32)
         self.assertEqual(struct.unpack_from("<H", data, 300)[0], 250)
-        self.assertEqual(struct.unpack_from("<I", data, 318)[0], 1)
+        self.assertEqual(data[318:350], b"" * 32)
+        self.assertEqual(solana.decode_job(data)["treasury"], b58.b58encode(b"" * 32))
+        self.assertEqual(struct.unpack_from("<I", data, 350)[0], 1)
 
     def test_decode_job_rejects_garbage(self):
         with self.assertRaises(ValueError):
             solana.decode_job(b"\0" * 400)
         bad = bytearray(make_job_account("abc", os.urandom(32)))
-        struct.pack_into("<I", bad, 318, 200)
+        struct.pack_into("<I", bad, 350, 200)
         with self.assertRaises(ValueError):
             solana.decode_job(bytes(bad))
 
@@ -348,7 +351,7 @@ class TestSolanaDecode(Base):
         self.assertEqual(by_name["JobAccount"], solana.JOB_DISCRIMINATOR)
         self.assertEqual(by_name["Config"], solana.CONFIG_DISCRIMINATOR)
         fields = [f["name"] for t in idl["types"] if t["name"] == "JobAccount" for f in t["type"]["fields"]]
-        self.assertEqual(fields[-6:], ["arbiter", "rent_payer", "fee_bps", "dispute_period", "dispute_deadline", "job_id"])
+        self.assertEqual(fields[-7:], ["arbiter", "rent_payer", "fee_bps", "dispute_period", "dispute_deadline", "treasury", "job_id"])
 
     def test_rpc_fallback_on_transport_error(self):
         calls = []

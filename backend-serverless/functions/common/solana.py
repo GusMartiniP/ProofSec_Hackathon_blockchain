@@ -42,7 +42,7 @@ JOB_STATUS = [
     "CANCELLED",
 ]
 ZERO32 = "00" * 32
-JOB_FIXED_SIZE = 322  # até o prefixo de tamanho do job_id (inclusive)
+JOB_FIXED_SIZE = 354  # até o prefixo de tamanho do job_id (inclusive)
 
 
 class RpcError(Exception):
@@ -101,7 +101,8 @@ def decode_job(data: bytes) -> dict:
     rent_payer = _pk(data[268:300])
     (fee_bps,) = struct.unpack_from("<H", data, 300)
     dispute_period, dispute_deadline = struct.unpack_from("<qq", data, 302)
-    (id_len,) = struct.unpack_from("<I", data, 318)
+    treasury = _pk(data[318:350])  # congelada no job (PS-37)
+    (id_len,) = struct.unpack_from("<I", data, 350)
     if id_len > 32 or len(data) < JOB_FIXED_SIZE + id_len:
         raise ValueError("job_id inválido")
     job_id = data[JOB_FIXED_SIZE : JOB_FIXED_SIZE + id_len].decode("utf-8")
@@ -125,6 +126,7 @@ def decode_job(data: bytes) -> dict:
         "feeBps": fee_bps,
         "disputePeriod": dispute_period,
         "disputeDeadline": dispute_deadline,
+        "treasury": treasury,
         "jobId": job_id,
     }
 

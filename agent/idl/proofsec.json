@@ -4,11 +4,14 @@
     "name": "proofsec",
     "version": "0.3.0",
     "spec": "0.1.0",
-    "description": "PREVIEW gerado por scripts/gen_idl_preview.py - substituido pelo IDL real no anchor build"
+    "description": "ProofSec - Programmable security escrow with optimistic release, disputes and on-chain agent spending policy"
   },
   "instructions": [
     {
       "name": "accept_job",
+      "docs": [
+        "Só o pesquisador atribuído pelo cliente pode aceitar (PS-01)."
+      ],
       "discriminator": [
         43,
         201,
@@ -33,6 +36,9 @@
     },
     {
       "name": "approve_and_release",
+      "docs": [
+        "Cliente aprova a evidência: pesquisador recebe (menos a taxa congelada no job)."
+      ],
       "discriminator": [
         63,
         254,
@@ -45,7 +51,22 @@
       ],
       "accounts": [
         {
-          "name": "config"
+          "name": "config",
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  99,
+                  111,
+                  110,
+                  102,
+                  105,
+                  103
+                ]
+              }
+            ]
+          }
         },
         {
           "name": "job_account",
@@ -53,32 +74,222 @@
         },
         {
           "name": "vault",
-          "writable": true
+          "writable": true,
+          "relations": [
+            "job_account"
+          ]
         },
         {
-          "name": "mint"
+          "name": "mint",
+          "relations": [
+            "job_account"
+          ]
         },
         {
           "name": "client",
-          "signer": true
+          "signer": true,
+          "relations": [
+            "job_account"
+          ]
         },
         {
-          "name": "researcher"
+          "name": "researcher",
+          "relations": [
+            "job_account"
+          ]
         },
         {
           "name": "researcher_token_account",
-          "writable": true
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "account",
+                "path": "researcher"
+              },
+              {
+                "kind": "const",
+                "value": [
+                  6,
+                  221,
+                  246,
+                  225,
+                  215,
+                  101,
+                  161,
+                  147,
+                  217,
+                  203,
+                  225,
+                  70,
+                  206,
+                  235,
+                  121,
+                  172,
+                  28,
+                  180,
+                  133,
+                  237,
+                  95,
+                  91,
+                  55,
+                  145,
+                  58,
+                  140,
+                  245,
+                  133,
+                  126,
+                  255,
+                  0,
+                  169
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "mint"
+              }
+            ],
+            "program": {
+              "kind": "const",
+              "value": [
+                140,
+                151,
+                37,
+                143,
+                78,
+                36,
+                137,
+                241,
+                187,
+                61,
+                16,
+                41,
+                20,
+                142,
+                13,
+                131,
+                11,
+                90,
+                19,
+                153,
+                218,
+                255,
+                16,
+                132,
+                4,
+                142,
+                123,
+                216,
+                219,
+                233,
+                248,
+                89
+              ]
+            }
+          }
         },
         {
           "name": "treasury"
         },
         {
           "name": "treasury_token_account",
-          "writable": true
+          "docs": [
+            "`dup`: pode coincidir com a ATA do pesquisador (ex.: admin testando como pesquisador)."
+          ],
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "account",
+                "path": "treasury"
+              },
+              {
+                "kind": "const",
+                "value": [
+                  6,
+                  221,
+                  246,
+                  225,
+                  215,
+                  101,
+                  161,
+                  147,
+                  217,
+                  203,
+                  225,
+                  70,
+                  206,
+                  235,
+                  121,
+                  172,
+                  28,
+                  180,
+                  133,
+                  237,
+                  95,
+                  91,
+                  55,
+                  145,
+                  58,
+                  140,
+                  245,
+                  133,
+                  126,
+                  255,
+                  0,
+                  169
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "mint"
+              }
+            ],
+            "program": {
+              "kind": "const",
+              "value": [
+                140,
+                151,
+                37,
+                143,
+                78,
+                36,
+                137,
+                241,
+                187,
+                61,
+                16,
+                41,
+                20,
+                142,
+                13,
+                131,
+                11,
+                90,
+                19,
+                153,
+                218,
+                255,
+                16,
+                132,
+                4,
+                142,
+                123,
+                216,
+                219,
+                233,
+                248,
+                89
+              ]
+            }
+          }
         },
         {
           "name": "rent_payer",
-          "writable": true
+          "writable": true,
+          "relations": [
+            "job_account"
+          ]
         },
         {
           "name": "token_program",
@@ -89,6 +300,9 @@
     },
     {
       "name": "assign_researcher",
+      "docs": [
+        "Cliente atribui (ou troca, ou remove) o pesquisador antes do aceite."
+      ],
       "discriminator": [
         63,
         123,
@@ -106,7 +320,10 @@
         },
         {
           "name": "client",
-          "signer": true
+          "signer": true,
+          "relations": [
+            "job_account"
+          ]
         }
       ],
       "args": [
@@ -118,6 +335,9 @@
     },
     {
       "name": "cancel_job",
+      "docs": [
+        "Cliente cancela antes de o pesquisador aceitar."
+      ],
       "discriminator": [
         126,
         241,
@@ -135,22 +355,120 @@
         },
         {
           "name": "vault",
-          "writable": true
+          "writable": true,
+          "relations": [
+            "job_account"
+          ]
         },
         {
-          "name": "mint"
+          "name": "mint",
+          "relations": [
+            "job_account"
+          ]
         },
         {
           "name": "client",
-          "signer": true
+          "signer": true,
+          "relations": [
+            "job_account"
+          ]
         },
         {
           "name": "client_token_account",
-          "writable": true
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "account",
+                "path": "client"
+              },
+              {
+                "kind": "const",
+                "value": [
+                  6,
+                  221,
+                  246,
+                  225,
+                  215,
+                  101,
+                  161,
+                  147,
+                  217,
+                  203,
+                  225,
+                  70,
+                  206,
+                  235,
+                  121,
+                  172,
+                  28,
+                  180,
+                  133,
+                  237,
+                  95,
+                  91,
+                  55,
+                  145,
+                  58,
+                  140,
+                  245,
+                  133,
+                  126,
+                  255,
+                  0,
+                  169
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "mint"
+              }
+            ],
+            "program": {
+              "kind": "const",
+              "value": [
+                140,
+                151,
+                37,
+                143,
+                78,
+                36,
+                137,
+                241,
+                187,
+                61,
+                16,
+                41,
+                20,
+                142,
+                13,
+                131,
+                11,
+                90,
+                19,
+                153,
+                218,
+                255,
+                16,
+                132,
+                4,
+                142,
+                123,
+                216,
+                219,
+                233,
+                248,
+                89
+              ]
+            }
+          }
         },
         {
           "name": "rent_payer",
-          "writable": true
+          "writable": true,
+          "relations": [
+            "job_account"
+          ]
         },
         {
           "name": "token_program",
@@ -161,6 +479,9 @@
     },
     {
       "name": "claim_after_review",
+      "docs": [
+        "Janela de revisão terminou sem aprovação nem disputa: pesquisador saca."
+      ],
       "discriminator": [
         114,
         16,
@@ -173,7 +494,22 @@
       ],
       "accounts": [
         {
-          "name": "config"
+          "name": "config",
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  99,
+                  111,
+                  110,
+                  102,
+                  105,
+                  103
+                ]
+              }
+            ]
+          }
         },
         {
           "name": "job_account",
@@ -181,29 +517,213 @@
         },
         {
           "name": "vault",
-          "writable": true
+          "writable": true,
+          "relations": [
+            "job_account"
+          ]
         },
         {
-          "name": "mint"
+          "name": "mint",
+          "relations": [
+            "job_account"
+          ]
         },
         {
           "name": "researcher",
-          "signer": true
+          "signer": true,
+          "relations": [
+            "job_account"
+          ]
         },
         {
           "name": "researcher_token_account",
-          "writable": true
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "account",
+                "path": "researcher"
+              },
+              {
+                "kind": "const",
+                "value": [
+                  6,
+                  221,
+                  246,
+                  225,
+                  215,
+                  101,
+                  161,
+                  147,
+                  217,
+                  203,
+                  225,
+                  70,
+                  206,
+                  235,
+                  121,
+                  172,
+                  28,
+                  180,
+                  133,
+                  237,
+                  95,
+                  91,
+                  55,
+                  145,
+                  58,
+                  140,
+                  245,
+                  133,
+                  126,
+                  255,
+                  0,
+                  169
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "mint"
+              }
+            ],
+            "program": {
+              "kind": "const",
+              "value": [
+                140,
+                151,
+                37,
+                143,
+                78,
+                36,
+                137,
+                241,
+                187,
+                61,
+                16,
+                41,
+                20,
+                142,
+                13,
+                131,
+                11,
+                90,
+                19,
+                153,
+                218,
+                255,
+                16,
+                132,
+                4,
+                142,
+                123,
+                216,
+                219,
+                233,
+                248,
+                89
+              ]
+            }
+          }
         },
         {
           "name": "treasury"
         },
         {
           "name": "treasury_token_account",
-          "writable": true
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "account",
+                "path": "treasury"
+              },
+              {
+                "kind": "const",
+                "value": [
+                  6,
+                  221,
+                  246,
+                  225,
+                  215,
+                  101,
+                  161,
+                  147,
+                  217,
+                  203,
+                  225,
+                  70,
+                  206,
+                  235,
+                  121,
+                  172,
+                  28,
+                  180,
+                  133,
+                  237,
+                  95,
+                  91,
+                  55,
+                  145,
+                  58,
+                  140,
+                  245,
+                  133,
+                  126,
+                  255,
+                  0,
+                  169
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "mint"
+              }
+            ],
+            "program": {
+              "kind": "const",
+              "value": [
+                140,
+                151,
+                37,
+                143,
+                78,
+                36,
+                137,
+                241,
+                187,
+                61,
+                16,
+                41,
+                20,
+                142,
+                13,
+                131,
+                11,
+                90,
+                19,
+                153,
+                218,
+                255,
+                16,
+                132,
+                4,
+                142,
+                123,
+                216,
+                219,
+                233,
+                248,
+                89
+              ]
+            }
+          }
         },
         {
           "name": "rent_payer",
-          "writable": true
+          "writable": true,
+          "relations": [
+            "job_account"
+          ]
         },
         {
           "name": "token_program",
@@ -214,6 +734,9 @@
     },
     {
       "name": "initialize_config",
+      "docs": [
+        "Cria a configuração. Só a upgrade authority do programa pode chamar (PS-03)."
+      ],
       "discriminator": [
         208,
         127,
@@ -227,7 +750,22 @@
       "accounts": [
         {
           "name": "config",
-          "writable": true
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  99,
+                  111,
+                  110,
+                  102,
+                  105,
+                  103
+                ]
+              }
+            ]
+          }
         },
         {
           "name": "admin",
@@ -236,10 +774,16 @@
         },
         {
           "name": "program",
+          "docs": [
+            "O próprio programa, para localizar a conta ProgramData."
+          ],
           "address": "PrfSec1111111111111111111111111111111111111"
         },
         {
-          "name": "program_data"
+          "name": "program_data",
+          "docs": [
+            "Só a upgrade authority pode criar a configuração (PS-03)."
+          ]
         },
         {
           "name": "system_program",
@@ -271,6 +815,10 @@
     },
     {
       "name": "initialize_job",
+      "docs": [
+        "Cliente (humano, via carteira) cria o job e trava os fundos.",
+        "`researcher` pode vir preenchido (atribuição imediata) ou vazio (Pubkey::default())."
+      ],
       "discriminator": [
         137,
         22,
@@ -283,15 +831,72 @@
       ],
       "accounts": [
         {
-          "name": "config"
+          "name": "config",
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  99,
+                  111,
+                  110,
+                  102,
+                  105,
+                  103
+                ]
+              }
+            ]
+          }
         },
         {
           "name": "job_account",
-          "writable": true
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  106,
+                  111,
+                  98
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "client"
+              },
+              {
+                "kind": "arg",
+                "path": "job_id"
+              }
+            ]
+          }
         },
         {
           "name": "vault",
-          "writable": true
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  118,
+                  97,
+                  117,
+                  108,
+                  116
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "client"
+              },
+              {
+                "kind": "arg",
+                "path": "job_id"
+              }
+            ]
+          }
         },
         {
           "name": "client",
@@ -348,6 +953,11 @@
     },
     {
       "name": "initialize_job_by_agent",
+      "docs": [
+        "Agente de IA cria o job em nome da empresa, dentro da política on-chain.",
+        "Os fundos saem da conta da empresa usando o PDA da política como delegate.",
+        "O agente NÃO escolhe pesquisador e a janela de revisão mínima é maior (PS-05)."
+      ],
       "discriminator": [
         104,
         177,
@@ -360,7 +970,22 @@
       ],
       "accounts": [
         {
-          "name": "config"
+          "name": "config",
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  99,
+                  111,
+                  110,
+                  102,
+                  105,
+                  103
+                ]
+              }
+            ]
+          }
         },
         {
           "name": "policy",
@@ -369,21 +994,73 @@
         {
           "name": "agent",
           "writable": true,
-          "signer": true
+          "signer": true,
+          "relations": [
+            "policy"
+          ]
         },
         {
-          "name": "owner"
+          "name": "owner",
+          "relations": [
+            "policy"
+          ]
         },
         {
           "name": "job_account",
-          "writable": true
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  106,
+                  111,
+                  98
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "owner"
+              },
+              {
+                "kind": "arg",
+                "path": "job_id"
+              }
+            ]
+          }
         },
         {
           "name": "vault",
-          "writable": true
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  118,
+                  97,
+                  117,
+                  108,
+                  116
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "owner"
+              },
+              {
+                "kind": "arg",
+                "path": "job_id"
+              }
+            ]
+          }
         },
         {
           "name": "owner_token_account",
+          "docs": [
+            "Conta de USDC da empresa; o PDA `policy` precisa ser o delegate dela",
+            "(o Token Program rejeita a transferência caso contrário)."
+          ],
           "writable": true
         },
         {
@@ -428,6 +1105,9 @@
     },
     {
       "name": "open_dispute",
+      "docs": [
+        "Cliente contesta a evidência dentro da janela de revisão. Abre o prazo do árbitro."
+      ],
       "discriminator": [
         137,
         25,
@@ -445,13 +1125,165 @@
         },
         {
           "name": "client",
-          "signer": true
+          "signer": true,
+          "relations": [
+            "job_account"
+          ]
+        }
+      ],
+      "args": []
+    },
+    {
+      "name": "recover_stuck_funds",
+      "docs": [
+        "Último recurso (PS-37 / INV-4): se as contas de token de uma liquidação ficarem inutilizáveis",
+        "(por exemplo, ATA congelada pelo emissor do mint) e ninguém liquidar, depois de",
+        "`RECOVERY_GRACE_PERIOD` qualquer pessoa devolve o saldo inteiro ao cliente. O destino é fixo",
+        "(a ATA do cliente do job), então quem chama não ganha nada além de destravar."
+      ],
+      "discriminator": [
+        109,
+        200,
+        28,
+        42,
+        147,
+        42,
+        36,
+        50
+      ],
+      "accounts": [
+        {
+          "name": "job_account",
+          "writable": true
+        },
+        {
+          "name": "vault",
+          "writable": true,
+          "relations": [
+            "job_account"
+          ]
+        },
+        {
+          "name": "mint",
+          "relations": [
+            "job_account"
+          ]
+        },
+        {
+          "name": "client",
+          "relations": [
+            "job_account"
+          ]
+        },
+        {
+          "name": "client_token_account",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "account",
+                "path": "client"
+              },
+              {
+                "kind": "const",
+                "value": [
+                  6,
+                  221,
+                  246,
+                  225,
+                  215,
+                  101,
+                  161,
+                  147,
+                  217,
+                  203,
+                  225,
+                  70,
+                  206,
+                  235,
+                  121,
+                  172,
+                  28,
+                  180,
+                  133,
+                  237,
+                  95,
+                  91,
+                  55,
+                  145,
+                  58,
+                  140,
+                  245,
+                  133,
+                  126,
+                  255,
+                  0,
+                  169
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "mint"
+              }
+            ],
+            "program": {
+              "kind": "const",
+              "value": [
+                140,
+                151,
+                37,
+                143,
+                78,
+                36,
+                137,
+                241,
+                187,
+                61,
+                16,
+                41,
+                20,
+                142,
+                13,
+                131,
+                11,
+                90,
+                19,
+                153,
+                218,
+                255,
+                16,
+                132,
+                4,
+                142,
+                123,
+                216,
+                219,
+                233,
+                248,
+                89
+              ]
+            }
+          }
+        },
+        {
+          "name": "rent_payer",
+          "writable": true,
+          "relations": [
+            "job_account"
+          ]
+        },
+        {
+          "name": "token_program",
+          "address": "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA"
         }
       ],
       "args": []
     },
     {
       "name": "refund_expired",
+      "docs": [
+        "Prazo expirou sem evidência: devolve tudo ao cliente."
+      ],
       "discriminator": [
         118,
         153,
@@ -469,22 +1301,120 @@
         },
         {
           "name": "vault",
-          "writable": true
+          "writable": true,
+          "relations": [
+            "job_account"
+          ]
         },
         {
-          "name": "mint"
+          "name": "mint",
+          "relations": [
+            "job_account"
+          ]
         },
         {
           "name": "client",
-          "signer": true
+          "signer": true,
+          "relations": [
+            "job_account"
+          ]
         },
         {
           "name": "client_token_account",
-          "writable": true
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "account",
+                "path": "client"
+              },
+              {
+                "kind": "const",
+                "value": [
+                  6,
+                  221,
+                  246,
+                  225,
+                  215,
+                  101,
+                  161,
+                  147,
+                  217,
+                  203,
+                  225,
+                  70,
+                  206,
+                  235,
+                  121,
+                  172,
+                  28,
+                  180,
+                  133,
+                  237,
+                  95,
+                  91,
+                  55,
+                  145,
+                  58,
+                  140,
+                  245,
+                  133,
+                  126,
+                  255,
+                  0,
+                  169
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "mint"
+              }
+            ],
+            "program": {
+              "kind": "const",
+              "value": [
+                140,
+                151,
+                37,
+                143,
+                78,
+                36,
+                137,
+                241,
+                187,
+                61,
+                16,
+                41,
+                20,
+                142,
+                13,
+                131,
+                11,
+                90,
+                19,
+                153,
+                218,
+                255,
+                16,
+                132,
+                4,
+                142,
+                123,
+                216,
+                219,
+                233,
+                248,
+                89
+              ]
+            }
+          }
         },
         {
           "name": "rent_payer",
-          "writable": true
+          "writable": true,
+          "relations": [
+            "job_account"
+          ]
         },
         {
           "name": "token_program",
@@ -495,6 +1425,10 @@
     },
     {
       "name": "resolve_dispute",
+      "docs": [
+        "Árbitro congelado no job decide quanto (em bps) vai para o pesquisador;",
+        "o resto volta ao cliente."
+      ],
       "discriminator": [
         231,
         6,
@@ -507,11 +1441,32 @@
       ],
       "accounts": [
         {
-          "name": "config"
+          "name": "config",
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  99,
+                  111,
+                  110,
+                  102,
+                  105,
+                  103
+                ]
+              }
+            ]
+          }
         },
         {
           "name": "arbiter",
-          "signer": true
+          "docs": [
+            "Árbitro congelado no job (PS-04), não o da configuração atual."
+          ],
+          "signer": true,
+          "relations": [
+            "job_account"
+          ]
         },
         {
           "name": "job_account",
@@ -519,35 +1474,311 @@
         },
         {
           "name": "vault",
-          "writable": true
+          "writable": true,
+          "relations": [
+            "job_account"
+          ]
         },
         {
-          "name": "mint"
+          "name": "mint",
+          "relations": [
+            "job_account"
+          ]
         },
         {
-          "name": "client"
+          "name": "client",
+          "relations": [
+            "job_account"
+          ]
         },
         {
           "name": "client_token_account",
-          "writable": true
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "account",
+                "path": "client"
+              },
+              {
+                "kind": "const",
+                "value": [
+                  6,
+                  221,
+                  246,
+                  225,
+                  215,
+                  101,
+                  161,
+                  147,
+                  217,
+                  203,
+                  225,
+                  70,
+                  206,
+                  235,
+                  121,
+                  172,
+                  28,
+                  180,
+                  133,
+                  237,
+                  95,
+                  91,
+                  55,
+                  145,
+                  58,
+                  140,
+                  245,
+                  133,
+                  126,
+                  255,
+                  0,
+                  169
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "mint"
+              }
+            ],
+            "program": {
+              "kind": "const",
+              "value": [
+                140,
+                151,
+                37,
+                143,
+                78,
+                36,
+                137,
+                241,
+                187,
+                61,
+                16,
+                41,
+                20,
+                142,
+                13,
+                131,
+                11,
+                90,
+                19,
+                153,
+                218,
+                255,
+                16,
+                132,
+                4,
+                142,
+                123,
+                216,
+                219,
+                233,
+                248,
+                89
+              ]
+            }
+          }
         },
         {
-          "name": "researcher"
+          "name": "researcher",
+          "relations": [
+            "job_account"
+          ]
         },
         {
           "name": "researcher_token_account",
-          "writable": true
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "account",
+                "path": "researcher"
+              },
+              {
+                "kind": "const",
+                "value": [
+                  6,
+                  221,
+                  246,
+                  225,
+                  215,
+                  101,
+                  161,
+                  147,
+                  217,
+                  203,
+                  225,
+                  70,
+                  206,
+                  235,
+                  121,
+                  172,
+                  28,
+                  180,
+                  133,
+                  237,
+                  95,
+                  91,
+                  55,
+                  145,
+                  58,
+                  140,
+                  245,
+                  133,
+                  126,
+                  255,
+                  0,
+                  169
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "mint"
+              }
+            ],
+            "program": {
+              "kind": "const",
+              "value": [
+                140,
+                151,
+                37,
+                143,
+                78,
+                36,
+                137,
+                241,
+                187,
+                61,
+                16,
+                41,
+                20,
+                142,
+                13,
+                131,
+                11,
+                90,
+                19,
+                153,
+                218,
+                255,
+                16,
+                132,
+                4,
+                142,
+                123,
+                216,
+                219,
+                233,
+                248,
+                89
+              ]
+            }
+          }
         },
         {
           "name": "treasury"
         },
         {
           "name": "treasury_token_account",
-          "writable": true
+          "docs": [
+            "`dup`: pode coincidir com a ATA do cliente ou do pesquisador."
+          ],
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "account",
+                "path": "treasury"
+              },
+              {
+                "kind": "const",
+                "value": [
+                  6,
+                  221,
+                  246,
+                  225,
+                  215,
+                  101,
+                  161,
+                  147,
+                  217,
+                  203,
+                  225,
+                  70,
+                  206,
+                  235,
+                  121,
+                  172,
+                  28,
+                  180,
+                  133,
+                  237,
+                  95,
+                  91,
+                  55,
+                  145,
+                  58,
+                  140,
+                  245,
+                  133,
+                  126,
+                  255,
+                  0,
+                  169
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "mint"
+              }
+            ],
+            "program": {
+              "kind": "const",
+              "value": [
+                140,
+                151,
+                37,
+                143,
+                78,
+                36,
+                137,
+                241,
+                187,
+                61,
+                16,
+                41,
+                20,
+                142,
+                13,
+                131,
+                11,
+                90,
+                19,
+                153,
+                218,
+                255,
+                16,
+                132,
+                4,
+                142,
+                123,
+                216,
+                219,
+                233,
+                248,
+                89
+              ]
+            }
+          }
         },
         {
           "name": "rent_payer",
-          "writable": true
+          "writable": true,
+          "relations": [
+            "job_account"
+          ]
         },
         {
           "name": "token_program",
@@ -563,6 +1794,10 @@
     },
     {
       "name": "resolve_dispute_timeout",
+      "docs": [
+        "O árbitro não decidiu dentro do prazo: qualquer pessoa aplica a divisão padrão",
+        "(50/50). Garante que os fundos nunca fiquem presos em disputa (PS-02 / INV-4)."
+      ],
       "discriminator": [
         244,
         133,
@@ -575,7 +1810,22 @@
       ],
       "accounts": [
         {
-          "name": "config"
+          "name": "config",
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  99,
+                  111,
+                  110,
+                  102,
+                  105,
+                  103
+                ]
+              }
+            ]
+          }
         },
         {
           "name": "job_account",
@@ -583,35 +1833,308 @@
         },
         {
           "name": "vault",
-          "writable": true
+          "writable": true,
+          "relations": [
+            "job_account"
+          ]
         },
         {
-          "name": "mint"
+          "name": "mint",
+          "relations": [
+            "job_account"
+          ]
         },
         {
-          "name": "client"
+          "name": "client",
+          "relations": [
+            "job_account"
+          ]
         },
         {
           "name": "client_token_account",
-          "writable": true
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "account",
+                "path": "client"
+              },
+              {
+                "kind": "const",
+                "value": [
+                  6,
+                  221,
+                  246,
+                  225,
+                  215,
+                  101,
+                  161,
+                  147,
+                  217,
+                  203,
+                  225,
+                  70,
+                  206,
+                  235,
+                  121,
+                  172,
+                  28,
+                  180,
+                  133,
+                  237,
+                  95,
+                  91,
+                  55,
+                  145,
+                  58,
+                  140,
+                  245,
+                  133,
+                  126,
+                  255,
+                  0,
+                  169
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "mint"
+              }
+            ],
+            "program": {
+              "kind": "const",
+              "value": [
+                140,
+                151,
+                37,
+                143,
+                78,
+                36,
+                137,
+                241,
+                187,
+                61,
+                16,
+                41,
+                20,
+                142,
+                13,
+                131,
+                11,
+                90,
+                19,
+                153,
+                218,
+                255,
+                16,
+                132,
+                4,
+                142,
+                123,
+                216,
+                219,
+                233,
+                248,
+                89
+              ]
+            }
+          }
         },
         {
-          "name": "researcher"
+          "name": "researcher",
+          "relations": [
+            "job_account"
+          ]
         },
         {
           "name": "researcher_token_account",
-          "writable": true
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "account",
+                "path": "researcher"
+              },
+              {
+                "kind": "const",
+                "value": [
+                  6,
+                  221,
+                  246,
+                  225,
+                  215,
+                  101,
+                  161,
+                  147,
+                  217,
+                  203,
+                  225,
+                  70,
+                  206,
+                  235,
+                  121,
+                  172,
+                  28,
+                  180,
+                  133,
+                  237,
+                  95,
+                  91,
+                  55,
+                  145,
+                  58,
+                  140,
+                  245,
+                  133,
+                  126,
+                  255,
+                  0,
+                  169
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "mint"
+              }
+            ],
+            "program": {
+              "kind": "const",
+              "value": [
+                140,
+                151,
+                37,
+                143,
+                78,
+                36,
+                137,
+                241,
+                187,
+                61,
+                16,
+                41,
+                20,
+                142,
+                13,
+                131,
+                11,
+                90,
+                19,
+                153,
+                218,
+                255,
+                16,
+                132,
+                4,
+                142,
+                123,
+                216,
+                219,
+                233,
+                248,
+                89
+              ]
+            }
+          }
         },
         {
           "name": "treasury"
         },
         {
           "name": "treasury_token_account",
-          "writable": true
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "account",
+                "path": "treasury"
+              },
+              {
+                "kind": "const",
+                "value": [
+                  6,
+                  221,
+                  246,
+                  225,
+                  215,
+                  101,
+                  161,
+                  147,
+                  217,
+                  203,
+                  225,
+                  70,
+                  206,
+                  235,
+                  121,
+                  172,
+                  28,
+                  180,
+                  133,
+                  237,
+                  95,
+                  91,
+                  55,
+                  145,
+                  58,
+                  140,
+                  245,
+                  133,
+                  126,
+                  255,
+                  0,
+                  169
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "mint"
+              }
+            ],
+            "program": {
+              "kind": "const",
+              "value": [
+                140,
+                151,
+                37,
+                143,
+                78,
+                36,
+                137,
+                241,
+                187,
+                61,
+                16,
+                41,
+                20,
+                142,
+                13,
+                131,
+                11,
+                90,
+                19,
+                153,
+                218,
+                255,
+                16,
+                132,
+                4,
+                142,
+                123,
+                216,
+                219,
+                233,
+                248,
+                89
+              ]
+            }
+          }
         },
         {
           "name": "rent_payer",
-          "writable": true
+          "writable": true,
+          "relations": [
+            "job_account"
+          ]
         },
         {
           "name": "token_program",
@@ -635,7 +2158,26 @@
       "accounts": [
         {
           "name": "policy",
-          "writable": true
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  112,
+                  111,
+                  108,
+                  105,
+                  99,
+                  121
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "owner"
+              }
+            ]
+          }
         },
         {
           "name": "owner",
@@ -706,6 +2248,10 @@
     },
     {
       "name": "update_config",
+      "docs": [
+        "Atualiza a configuração. Vale só para jobs NOVOS: taxa, árbitro e prazo de",
+        "disputa ficam congelados em cada job (PS-04)."
+      ],
       "discriminator": [
         29,
         158,
@@ -719,11 +2265,29 @@
       "accounts": [
         {
           "name": "config",
-          "writable": true
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  99,
+                  111,
+                  110,
+                  102,
+                  105,
+                  103
+                ]
+              }
+            ]
+          }
         },
         {
           "name": "admin",
-          "signer": true
+          "signer": true,
+          "relations": [
+            "config"
+          ]
         }
       ],
       "args": [
@@ -885,6 +2449,19 @@
         74,
         159,
         131
+      ]
+    },
+    {
+      "name": "JobRecovered",
+      "discriminator": [
+        228,
+        237,
+        21,
+        186,
+        208,
+        222,
+        229,
+        5
       ]
     },
     {
@@ -1072,11 +2649,29 @@
       "code": 6028,
       "name": "InvalidAuthority",
       "msg": "Autoridade inválida (chave vazia)."
+    },
+    {
+      "code": 6029,
+      "name": "CannotRecover",
+      "msg": "Este estado não permite a recuperação de último recurso."
+    },
+    {
+      "code": 6030,
+      "name": "RecoveryGraceNotElapsed",
+      "msg": "A carência da recuperação de último recurso ainda não terminou."
     }
   ],
   "types": [
     {
       "name": "AgentPolicy",
+      "docs": [
+        "Política de gasto do agente de IA, imposta on-chain.",
+        "PDA: [\"policy\", owner]",
+        "",
+        "O dono também precisa aprovar este PDA como *delegate* na sua conta de",
+        "USDC (spl-token approve). Assim a chave do agente nunca tem custódia: ela só",
+        "consegue mover fundos da empresa para escrows, dentro dos limites abaixo."
+      ],
       "type": {
         "kind": "struct",
         "fields": [
@@ -1157,31 +2752,53 @@
     },
     {
       "name": "Config",
+      "docs": [
+        "Configuração global da plataforma (PDA: [\"config\"]).",
+        "Só a upgrade authority do programa pode criá-la (PS-03)."
+      ],
       "type": {
         "kind": "struct",
         "fields": [
           {
             "name": "admin",
+            "docs": [
+              "Quem pode alterar a configuração."
+            ],
             "type": "pubkey"
           },
           {
             "name": "arbiter",
+            "docs": [
+              "Árbitro padrão para jobs NOVOS (cada job guarda o seu; PS-04)."
+            ],
             "type": "pubkey"
           },
           {
             "name": "treasury",
+            "docs": [
+              "Carteira que recebe a taxa da plataforma em jobs NOVOS (cada job guarda a sua; PS-37)."
+            ],
             "type": "pubkey"
           },
           {
             "name": "fee_bps",
+            "docs": [
+              "Taxa padrão para jobs NOVOS, em basis points sobre o valor pago ao pesquisador."
+            ],
             "type": "u16"
           },
           {
             "name": "allowed_mint",
+            "docs": [
+              "Se diferente de Pubkey::default(), só esse mint é aceito (ex.: USDC)."
+            ],
             "type": "pubkey"
           },
           {
             "name": "dispute_period",
+            "docs": [
+              "Prazo padrão (s) para o árbitro decidir uma disputa em jobs NOVOS."
+            ],
             "type": "i64"
           },
           {
@@ -1270,6 +2887,9 @@
           },
           {
             "name": "timed_out",
+            "docs": [
+              "true = árbitro não decidiu no prazo e a divisão padrão foi aplicada."
+            ],
             "type": "bool"
           }
         ]
@@ -1322,6 +2942,14 @@
     },
     {
       "name": "JobAccount",
+      "docs": [
+        "Escrow de um job de pentest/auditoria.",
+        "PDA: [\"job\", client, job_id]",
+        "",
+        "Todos os campos de tamanho fixo vêm antes de `job_id`, então os offsets são",
+        "estáveis e servem para filtros `memcmp` (cliente = 8, pesquisador = 40, status = 232).",
+        "O layout é decodificado fora da chain em `backend-serverless/functions/common/solana.py`."
+      ],
       "type": {
         "kind": "struct",
         "fields": [
@@ -1331,6 +2959,9 @@
           },
           {
             "name": "researcher",
+            "docs": [
+              "Pubkey::default() = aguardando o cliente atribuir um pesquisador (PS-01)."
+            ],
             "type": "pubkey"
           },
           {
@@ -1343,22 +2974,37 @@
           },
           {
             "name": "amount",
+            "docs": [
+              "Valor travado na criação, em unidades base do token (USDC = 6 casas)."
+            ],
             "type": "u64"
           },
           {
             "name": "deadline",
+            "docs": [
+              "Prazo para entrega da evidência (unix timestamp)."
+            ],
             "type": "i64"
           },
           {
             "name": "review_period",
+            "docs": [
+              "Duração da janela de revisão após a evidência (segundos)."
+            ],
             "type": "i64"
           },
           {
             "name": "review_deadline",
+            "docs": [
+              "Fim da janela de revisão (0 até a evidência ser enviada)."
+            ],
             "type": "i64"
           },
           {
             "name": "scope_hash",
+            "docs": [
+              "SHA-256 do escopo / Rules of Engagement aprovado pelo cliente."
+            ],
             "type": {
               "array": [
                 "u8",
@@ -1368,6 +3014,9 @@
           },
           {
             "name": "evidence_sha256",
+            "docs": [
+              "SHA-256 do relatório (blob cifrado guardado no S3)."
+            ],
             "type": {
               "array": [
                 "u8",
@@ -1397,23 +3046,46 @@
           },
           {
             "name": "arbiter",
+            "docs": [
+              "Árbitro congelado na criação do job (PS-04)."
+            ],
             "type": "pubkey"
           },
           {
             "name": "rent_payer",
+            "docs": [
+              "Quem pagou o rent do vault; recebe o rent de volta quando o vault fecha (PS-14)."
+            ],
             "type": "pubkey"
           },
           {
             "name": "fee_bps",
+            "docs": [
+              "Taxa congelada na criação do job (PS-04)."
+            ],
             "type": "u16"
           },
           {
             "name": "dispute_period",
+            "docs": [
+              "Prazo do árbitro congelado na criação do job (PS-02 / PS-04)."
+            ],
             "type": "i64"
           },
           {
             "name": "dispute_deadline",
+            "docs": [
+              "Fim do prazo do árbitro (0 até abrir disputa)."
+            ],
             "type": "i64"
+          },
+          {
+            "name": "treasury",
+            "docs": [
+              "Tesouraria congelada na criação do job (PS-37 / ADR-021): a taxa só vai para a ATA dela,",
+              "mesmo que o admin troque a tesouraria da `Config` depois."
+            ],
+            "type": "pubkey"
           },
           {
             "name": "job_id",
@@ -1476,6 +3148,36 @@
       }
     },
     {
+      "name": "JobRecovered",
+      "docs": [
+        "Recuperação de último recurso (PS-37): o saldo voltou inteiro ao cliente depois da carência."
+      ],
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "job",
+            "type": "pubkey"
+          },
+          {
+            "name": "client",
+            "type": "pubkey"
+          },
+          {
+            "name": "amount",
+            "type": "u64"
+          },
+          {
+            "name": "from_dispute",
+            "docs": [
+              "`true` se o job estava em disputa; `false` se estava com evidência submetida."
+            ],
+            "type": "bool"
+          }
+        ]
+      }
+    },
+    {
       "name": "JobRefunded",
       "type": {
         "kind": "struct",
@@ -1494,6 +3196,9 @@
           },
           {
             "name": "cancelled",
+            "docs": [
+              "true = cancelado antes do aceite; false = prazo expirado."
+            ],
             "type": "bool"
           }
         ]
@@ -1522,6 +3227,9 @@
           },
           {
             "name": "auto_released",
+            "docs": [
+              "true = liberado automaticamente após o fim da janela de revisão."
+            ],
             "type": "bool"
           }
         ]

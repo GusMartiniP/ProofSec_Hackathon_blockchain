@@ -15,6 +15,8 @@ export const USDC_MINT = new PublicKey(
   process.env.NEXT_PUBLIC_USDC_MINT || "4zMMC9srt5Ri5X14GAgXhaHii3GnPAEERYPJgZJDncDU"
 );
 export const USDC_DECIMALS = 6;
+/** Carência da recuperação de último recurso (constants.rs: RECOVERY_GRACE_PERIOD, PS-37). */
+export const RECOVERY_GRACE_SECONDS = 30 * 24 * 60 * 60;
 
 const clusterParam = CLUSTER === "mainnet-beta" ? "" : `?cluster=${CLUSTER}`;
 export const explorerTx = (sig: string) => `https://explorer.solana.com/tx/${sig}${clusterParam}`;

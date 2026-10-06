@@ -10,6 +10,7 @@
 //!   open_dispute / resolve_dispute            → cliente contesta → árbitro decide o split
 //!   resolve_dispute_timeout                   → árbitro não decidiu no prazo → 50/50 (qualquer um chama)
 //!   refund_expired / cancel_job               → devolução ao cliente
+//!   recover_stuck_funds                       → último recurso: contas de token travadas, após longa carência
 //!
 //! Política do agente de IA (set_agent_policy + spl-token approve): o agente só consegue
 //! abrir escrows em nome da empresa dentro de limites por job e por período, impostos aqui.
@@ -571,6 +572,25 @@ pub mod proofsec {
         );
         refund(ctx, JobStatus::Cancelled, true)
     }
+
+    /// Último recurso (PS-37 / INV-4): se as contas de token de uma liquidação ficarem inutilizáveis
+    /// (por exemplo, ATA congelada pelo emissor do mint) e ninguém liquidar, depois de
+    /// `RECOVERY_GRACE_PERIOD` qualquer pessoa devolve o saldo inteiro ao cliente. O destino é fixo
+    /// (a ATA do cliente do job), então quem chama não ganha nada além de destravar.
+    pub fn recover_stuck_funds(ctx: Context<RecoverStuckFunds>) -> Result<()> {
+        let now = Clock::get()?.unix_timestamp;
+        let job = &ctx.accounts.job_account;
+        let (reference, from_dispute) = match job.status {
+            JobStatus::EvidenceSubmitted => (job.review_deadline, false),
+            JobStatus::Disputed => (job.dispute_deadline, true),
+            _ => return err!(ProofSecError::CannotRecover),
+        };
+        let unlock_at = reference
+            .checked_add(RECOVERY_GRACE_PERIOD)
+            .ok_or(ProofSecError::MathOverflow)?;
+        require!(now > unlock_at, ProofSecError::RecoveryGraceNotElapsed);
+        recover(ctx, from_dispute)
+    }
 }
 
 // ==========================================================================
@@ -581,6 +601,7 @@ pub mod proofsec {
 #[derive(Clone, Copy)]
 struct Terms {
     arbiter: Pubkey,
+    treasury: Pubkey,
     fee_bps: u16,
     dispute_period: i64,
 }
@@ -589,6 +610,7 @@ impl Terms {
     fn from_config(config: &Config) -> Self {
         Terms {
             arbiter: config.arbiter,
+            treasury: config.treasury,
             fee_bps: config.fee_bps,
             dispute_period: config.dispute_period,
         }
@@ -682,6 +704,7 @@ fn write_job(job: &mut JobAccount, n: NewJob) {
     job.bump = n.bump;
     job.vault_bump = n.vault_bump;
     job.arbiter = n.terms.arbiter;
+    job.treasury = n.terms.treasury;
     job.rent_payer = n.rent_payer;
     job.fee_bps = n.terms.fee_bps;
     job.dispute_period = n.terms.dispute_period;
@@ -937,6 +960,43 @@ fn refund(ctx: Context<RefundJob>, final_status: JobStatus, cancelled: bool) -> 
     Ok(())
 }
 
+/// Devolve o saldo do vault ao cliente e fecha o vault (usado só por `recover_stuck_funds`).
+fn recover(ctx: Context<RecoverStuckFunds>, from_dispute: bool) -> Result<()> {
+    let (client_key, job_id, job_bump) = job_seed_parts(&ctx.accounts.job_account);
+    let bump = [job_bump];
+    let seeds: &[&[u8]] = &[JOB_SEED, client_key.as_ref(), job_id.as_bytes(), &bump];
+    let signer: &[&[&[u8]]] = &[seeds];
+    let authority = ctx.accounts.job_account.to_account_info();
+
+    let total = ctx.accounts.vault.amount;
+    vault_transfer(
+        &ctx.accounts.token_program,
+        &ctx.accounts.vault,
+        &authority,
+        &ctx.accounts.mint,
+        ctx.accounts.client_token_account.to_account_info(),
+        total,
+        signer,
+    )?;
+    close_vault(
+        &ctx.accounts.token_program,
+        &ctx.accounts.vault,
+        &authority,
+        ctx.accounts.rent_payer.to_account_info(),
+        signer,
+    )?;
+
+    let job = &mut ctx.accounts.job_account;
+    job.status = JobStatus::Refunded;
+    emit!(JobRecovered {
+        job: job.key(),
+        client: job.client,
+        amount: total,
+        from_dispute,
+    });
+    Ok(())
+}
+
 // ==========================================================================
 // Contas
 // (a ordem dos campos define a ordem das contas na instrução / no IDL)
@@ -1113,8 +1173,8 @@ pub struct ApproveAndRelease<'info> {
         associated_token::authority = researcher,
     )]
     pub researcher_token_account: Account<'info, TokenAccount>,
-    /// CHECK: validado contra `config.treasury`.
-    #[account(address = config.treasury)]
+    /// CHECK: validado contra a tesouraria congelada no job (PS-37), não a da `Config` atual.
+    #[account(address = job_account.treasury)]
     pub treasury: UncheckedAccount<'info>,
     /// `dup`: pode coincidir com a ATA do pesquisador (ex.: admin testando como pesquisador).
     #[account(
@@ -1152,8 +1212,8 @@ pub struct ClaimAfterReview<'info> {
         associated_token::authority = researcher,
     )]
     pub researcher_token_account: Account<'info, TokenAccount>,
-    /// CHECK: validado contra `config.treasury`.
-    #[account(address = config.treasury)]
+    /// CHECK: validado contra a tesouraria congelada no job (PS-37), não a da `Config` atual.
+    #[account(address = job_account.treasury)]
     pub treasury: UncheckedAccount<'info>,
     #[account(
         mut,
@@ -1210,8 +1270,8 @@ pub struct ResolveDispute<'info> {
         associated_token::authority = researcher,
     )]
     pub researcher_token_account: Account<'info, TokenAccount>,
-    /// CHECK: validado contra `config.treasury`.
-    #[account(address = config.treasury)]
+    /// CHECK: validado contra a tesouraria congelada no job (PS-37), não a da `Config` atual.
+    #[account(address = job_account.treasury)]
     pub treasury: UncheckedAccount<'info>,
     /// `dup`: pode coincidir com a ATA do cliente ou do pesquisador.
     #[account(
@@ -1261,8 +1321,8 @@ pub struct ResolveDisputeTimeout<'info> {
         associated_token::authority = researcher,
     )]
     pub researcher_token_account: Account<'info, TokenAccount>,
-    /// CHECK: validado contra `config.treasury`.
-    #[account(address = config.treasury)]
+    /// CHECK: validado contra a tesouraria congelada no job (PS-37), não a da `Config` atual.
+    #[account(address = job_account.treasury)]
     pub treasury: UncheckedAccount<'info>,
     #[account(
         mut,
@@ -1291,6 +1351,35 @@ pub struct RefundJob<'info> {
     pub vault: Account<'info, TokenAccount>,
     pub mint: Account<'info, Mint>,
     pub client: Signer<'info>,
+    #[account(
+        mut,
+        associated_token::mint = mint,
+        associated_token::authority = client,
+    )]
+    pub client_token_account: Account<'info, TokenAccount>,
+    /// CHECK: validado por `has_one = rent_payer`; recebe o rent do vault.
+    #[account(mut)]
+    pub rent_payer: UncheckedAccount<'info>,
+    pub token_program: Program<'info, Token>,
+}
+
+/// Sem signer de instrução: qualquer pessoa pode acionar a recuperação depois da carência.
+/// O destino é a ATA do cliente do job, fixo (INV-5).
+#[derive(Accounts)]
+pub struct RecoverStuckFunds<'info> {
+    #[account(
+        mut,
+        has_one = client,
+        has_one = vault,
+        has_one = mint,
+        has_one = rent_payer
+    )]
+    pub job_account: Account<'info, JobAccount>,
+    #[account(mut)]
+    pub vault: Account<'info, TokenAccount>,
+    pub mint: Account<'info, Mint>,
+    /// CHECK: validado por `has_one = client`.
+    pub client: UncheckedAccount<'info>,
     #[account(
         mut,
         associated_token::mint = mint,

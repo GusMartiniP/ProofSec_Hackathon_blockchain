@@ -230,7 +230,7 @@ resolver tudo). Qualquer uma pode ser revista por novo ADR.
   de assinar (`lib/meta.ts`). Páginas além da primeira exigem `offset` (a UI mostra as 100
   mais recentes).
 
-## ADR-021 — Tesouraria congelada no job e saída para contas de token travadas (PS-37) · Proposta (aguarda Codex e o dono do projeto)
+## ADR-021 — Tesouraria congelada no job e saída para contas de token travadas (PS-37) · Aceita
 
 - **Contexto:** PS-04 congela árbitro, taxa e prazo de disputa no `JobAccount`, mas a tesouraria
   usada nas liquidações é a da `Config` atual (`address = config.treasury`). Toda liquidação exige
@@ -255,8 +255,17 @@ resolver tudo). Qualquer uma pode ser revista por novo ADR.
   espelho com o último status antigo. PS-39 foi mitigado fora da chain (ADR-023).
 - **Segurança:** remove a dependência do admin para liberar fundos; a instrução nova é permissionless
   e com destino fixo. **Operacional:** muda layout e IDL, então só antes do primeiro deploy.
-- **Status:** nada foi implementado. É código Rust em `contracts/` (dono: Codex) e este ambiente
-  não tem `anchor`/`cargo`; qualquer edição sem compilar arriscaria quebrar o primeiro build.
+- **Implementação (branch `fix/ps-37-treasury-freeze`, aprovada pelo dono no chat):**
+  `JobAccount.treasury` (offset 318; `job_id` em 350; `JOB_FIXED_SIZE` 354); as quatro liquidações usam
+  `address = job_account.treasury` (a conta `config` continua nas instruções, só deixou de ser a fonte
+  da tesouraria); `recover_stuck_funds` (sem signer), erros `CannotRecover` e `RecoveryGraceNotElapsed`,
+  evento `JobRecovered`, constante `RECOVERY_GRACE_PERIOD` de 30 dias. Backend (`solana.py`,
+  `sync.py`), frontend (`program.ts`, botão no `JobCard`) e `gen_idl_preview.py` atualizados.
+- **Decisão sobre o status:** a recuperação reaproveita `Refunded` (sem nova variante no enum, que
+  mudaria os índices de status no backend e na UI); o evento `JobRecovered` distingue o caso.
+- **Residual:** se a ATA do cliente estiver congelada, não há saída on-chain. Se a ATA da tesouraria
+  estiver congelada, aprovações com taxa > 0 falham até a carência, e o pesquisador perde o
+  pagamento naquele job (a recuperação devolve tudo ao cliente).
 
 ## ADR-022 — Chaves de criptografia com prova de posse da carteira (PS-38) · Aceita
 
