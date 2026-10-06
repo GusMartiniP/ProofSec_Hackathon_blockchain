@@ -5,7 +5,20 @@ const isProd = process.env.NODE_ENV === "production";
 
 /** Hosts que o navegador pode chamar (RPC http/ws, API, S3 pré-assinado). */
 function connectSources() {
-  const out = new Set(["'self'", "https://*.amazonaws.com"]);
+  const out = new Set(["'self'"]);
+  // PS-47: o upload/download de relatórios usa URLs pré-assinadas do bucket de evidências. Liberar só
+  // o host dele (as duas formas que o boto3 gera em us-east-1) em vez de `*.amazonaws.com`, que serviria
+  // de destino de exfiltração (qualquer bucket/API AWS de terceiros).
+  const bucket = process.env.NEXT_PUBLIC_REPORTS_BUCKET;
+  if (bucket) {
+    out.add(`https://${bucket}.s3.amazonaws.com`);
+    out.add(`https://${bucket}.s3.${process.env.NEXT_PUBLIC_REPORTS_REGION || "us-east-1"}.amazonaws.com`);
+  } else {
+    if (isProd && process.env.NEXT_PUBLIC_API_URL) {
+      console.warn("[csp] NEXT_PUBLIC_REPORTS_BUCKET ausente: usando https://*.amazonaws.com no connect-src (PS-47).");
+    }
+    out.add("https://*.amazonaws.com");
+  }
   for (const url of [
     process.env.NEXT_PUBLIC_RPC_URL || "https://api.devnet.solana.com",
     process.env.NEXT_PUBLIC_RPC_URL_FALLBACK,

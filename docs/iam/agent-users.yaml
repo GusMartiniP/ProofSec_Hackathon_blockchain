@@ -7,6 +7,10 @@ Description: >
     aws cloudformation deploy --template-file docs/iam/agent-users.yaml \
       --stack-name proofsec-agent-iam --capabilities CAPABILITY_NAMED_IAM --no-execute-changeset
 
+Metadata:
+  AWSToolsMetrics:
+    AWSAgentToolkit: aws-cloudformation@3
+
 Parameters:
   Stage:
     Type: String
@@ -31,13 +35,63 @@ Resources:
         Statement:
           - Sid: NoIamOrOrgOrAccountChanges
             Effect: Deny
+            # So escrita: leitura de IAM continua permitida (o Antigravity revisa politicas via SecurityAudit).
             Action:
-              - iam:*
-              - organizations:*
-              - account:*
+              - iam:Create*
+              - iam:Delete*
+              - iam:Put*
+              - iam:Attach*
+              - iam:Detach*
+              - iam:Update*
+              - iam:Add*
+              - iam:Remove*
+              - iam:Set*
+              - iam:Tag*
+              - iam:Untag*
+              - iam:Upload*
+              - iam:Enable*
+              - iam:Disable*
+              - iam:Reset*
+              - iam:Resync*
+              - iam:Change*
+              - iam:Deactivate*
+              - iam:PassRole
+              - organizations:Create*
+              - organizations:Delete*
+              - organizations:Update*
+              - organizations:Invite*
+              - organizations:Remove*
+              - organizations:Move*
+              - organizations:Leave*
+              - organizations:Attach*
+              - organizations:Detach*
+              - organizations:Enable*
+              - organizations:Disable*
+              - organizations:Register*
+              - organizations:Deregister*
+              - organizations:Close*
+              - organizations:Put*
+              - organizations:Accept*
+              - organizations:Cancel*
+              - organizations:Decline*
+              - organizations:Tag*
+              - organizations:Untag*
+              - account:Put*
+              - account:Delete*
+              - account:Enable*
+              - account:Disable*
+              - account:Close*
+              - account:Accept*
+              - account:Start*
+              - account:Cancel*
               - sts:AssumeRole
-              - sso:*
-              - sso-directory:*
+              - sso:Create*
+              - sso:Delete*
+              - sso:Put*
+              - sso:Attach*
+              - sso:Detach*
+              - sso:Update*
+              - sso:Provision*
             Resource: "*"
           - Sid: NoBillingChanges
             Effect: Deny
@@ -106,7 +160,7 @@ Resources:
             Action:
               - s3:GetObject*
               - s3:PutObject*
-            Resource: !Sub "arn:${AWS::Partition}:s3:::proofsec-reports-*"
+            Resource: !Sub "arn:${AWS::Partition}:s3:::proofsec-reports-*/*"
           - Sid: NoSpendingServices
             # Hackathon budget: no GPU/compute fleets or model hosting via agent keys.
             Effect: Deny
@@ -207,14 +261,6 @@ Resources:
             Effect: Allow
             Action: logs:DescribeLogGroups
             Resource: "*"
-          - Sid: AwsKnowledge
-            # AWS MCP server: documentation, skills, regional availability.
-            Effect: Allow
-            Action:
-              - aws-mcp:InvokeMcp
-              - aws-mcp:CallReadOnlyTool
-            Resource: "*"
-
   # ------------------------------------------------------------- Claude Code
   # Owner of agent/ and frontend/: also needs to propose changesets for
   # agent/template.yaml and the SAM stack (review only, a human executes).
@@ -235,6 +281,8 @@ Resources:
               - !Sub "arn:${AWS::Partition}:cloudformation:${AppRegion}:${AWS::AccountId}:stack/proofsec-${Stage}/*"
               - !Sub "arn:${AWS::Partition}:cloudformation:${AppRegion}:${AWS::AccountId}:stack/proofsec-${Stage}-*/*"
               - !Sub "arn:${AWS::Partition}:cloudformation:${AppRegion}:aws:transform/Serverless-2016-10-31"
+          # PS-49: o agente precisa escrever aqui para gerar o changeset; por isso quem EXECUTA o deploy
+          # reconstroi e usa `force_upload = true` (samconfig.toml), para nao reaproveitar objeto adulterado.
           - Sid: SamArtifactBucket
             Effect: Allow
             Action:
@@ -299,12 +347,16 @@ Resources:
 
 Outputs:
   ClaudeCodeUserName:
+    Description: Nome do usuario IAM proposto para o Claude Code.
     Value: !Ref ClaudeCodeUser
   CodexUserName:
+    Description: Nome do usuario IAM proposto para o Codex.
     Value: !Ref CodexUser
   AntigravityUserName:
+    Description: Nome do usuario IAM proposto para o Antigravity.
     Value: !Ref AntigravityUser
   NextStep:
+    Description: Acao operacional somente depois da aprovacao da ADR-024 e da mudanca IAM.
     Value: >-
       Create ONE access key per user out-of-band (human, aws iam create-access-key),
       store it in a named profile on the machine that runs that agent

@@ -21,9 +21,38 @@ Parameters:
     Default: api.devnet.solana.com
     AllowedPattern: '^[a-z0-9.-]+$'
     Description: Host do RPC Solana (http e wss) liberado no connect-src.
+  ReportsBucket:
+    Type: String
+    Default: ""
+    AllowedPattern: '^([a-z0-9.-]+)?$'
+    Description: >-
+      Bucket de relatorios (saida ReportsBucketName do backend). Libera so o host dele no connect-src
+      (PS-47). Vazio = sem upload de relatorios pelo site.
+  EnableWaf:
+    Type: String
+    Default: "false"
+    AllowedValues: ["true", "false"]
+    Description: >-
+      Anexa um WAF (regras gerenciadas comuns e de entradas maliciosas, mais limite por IP).
+      Tem custo mensal; exige a stack em us-east-1 (escopo CLOUDFRONT).
+  EnableAccessLogs:
+    Type: String
+    Default: "false"
+    AllowedValues: ["true", "false"]
+    Description: Grava logs de acesso do CloudFront num bucket proprio (expira em 30 dias).
+
+Rules:
+  WafNeedsUsEast1:
+    RuleCondition: !Equals [!Ref EnableWaf, "true"]
+    Assertions:
+      - Assert: !Equals [!Ref "AWS::Region", us-east-1]
+        AssertDescription: WAF com escopo CLOUDFRONT so pode ser criado em us-east-1.
 
 Conditions:
   HasApiHost: !Not [!Equals [!Ref ApiHost, ""]]
+  HasReportsBucket: !Not [!Equals [!Ref ReportsBucket, ""]]
+  UseWaf: !Equals [!Ref EnableWaf, "true"]
+  UseLogs: !Equals [!Ref EnableAccessLogs, "true"]
 
 Resources:
   SiteBucket:
@@ -84,8 +113,12 @@ Resources:
           ContentSecurityPolicy:
             Override: true
             ContentSecurityPolicy: !Sub
-              - "default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; font-src 'self' data:; connect-src 'self' https://*.amazonaws.com https://${RpcHost} wss://${RpcHost}${Api}; object-src 'none'; base-uri 'self'; form-action 'self'; frame-ancestors 'none'"
+              - "default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; font-src 'self' data:; connect-src 'self'${Reports} https://${RpcHost} wss://${RpcHost}${Api}; object-src 'none'; base-uri 'self'; form-action 'self'; frame-ancestors 'none'"
               - Api: !If [HasApiHost, !Sub " https://${ApiHost}", ""]
+                Reports: !If
+                  - HasReportsBucket
+                  - !Sub " https://${ReportsBucket}.s3.amazonaws.com https://${ReportsBucket}.s3.${AWS::Region}.amazonaws.com"
+                  - ""
           ContentTypeOptions: { Override: true }
           FrameOptions: { FrameOption: DENY, Override: true }
           ReferrerPolicy: { ReferrerPolicy: strict-origin-when-cross-origin, Override: true }
@@ -97,11 +130,79 @@ Resources:
           Items:
             - { Header: Permissions-Policy, Value: "camera=(), microphone=(), geolocation=()", Override: true }
 
+  WebAcl:
+    Type: AWS::WAFv2::WebACL
+    Condition: UseWaf
+    Properties:
+      Name: !Sub "proofsec-web-${Stage}"
+      Scope: CLOUDFRONT
+      DefaultAction: { Allow: {} }
+      VisibilityConfig: { SampledRequestsEnabled: true, CloudWatchMetricsEnabled: true, MetricName: !Sub "proofsec-web-${Stage}" }
+      Rules:
+        - Name: common
+          Priority: 1
+          OverrideAction: { None: {} }
+          Statement: { ManagedRuleGroupStatement: { VendorName: AWS, Name: AWSManagedRulesCommonRuleSet } }
+          VisibilityConfig: { SampledRequestsEnabled: true, CloudWatchMetricsEnabled: true, MetricName: common }
+        - Name: known-bad-inputs
+          Priority: 2
+          OverrideAction: { None: {} }
+          Statement: { ManagedRuleGroupStatement: { VendorName: AWS, Name: AWSManagedRulesKnownBadInputsRuleSet } }
+          VisibilityConfig: { SampledRequestsEnabled: true, CloudWatchMetricsEnabled: true, MetricName: known-bad-inputs }
+        - Name: rate-limit-per-ip
+          Priority: 3
+          Action: { Block: {} }
+          Statement: { RateBasedStatement: { Limit: 2000, AggregateKeyType: IP } }
+          VisibilityConfig: { SampledRequestsEnabled: true, CloudWatchMetricsEnabled: true, MetricName: rate-limit-per-ip }
+
+  LogBucket:
+    Type: AWS::S3::Bucket
+    Condition: UseLogs
+    Properties:
+      BucketName: !Sub "proofsec-web-logs-${Stage}-${AWS::AccountId}-${AWS::Region}"
+      # O log legado do CloudFront entrega por ACL: precisa de ObjectWriter (nao BucketOwnerEnforced).
+      OwnershipControls:
+        Rules: [{ ObjectOwnership: ObjectWriter }]
+      PublicAccessBlockConfiguration:
+        BlockPublicAcls: true
+        BlockPublicPolicy: true
+        IgnorePublicAcls: false
+        RestrictPublicBuckets: true
+      BucketEncryption:
+        ServerSideEncryptionConfiguration:
+          - ServerSideEncryptionByDefault: { SSEAlgorithm: AES256 }
+      LifecycleConfiguration:
+        Rules:
+          - { Id: expire-logs, Status: Enabled, ExpirationInDays: 30 }
+          - { Id: abort-incomplete-uploads, Status: Enabled, AbortIncompleteMultipartUpload: { DaysAfterInitiation: 1 } }
+      Tags:
+        - { Key: Component, Value: web }
+
+  LogBucketPolicy:
+    Type: AWS::S3::BucketPolicy
+    Condition: UseLogs
+    Properties:
+      Bucket: !Ref LogBucket
+      PolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Sid: DenyInsecureTransport
+            Effect: Deny
+            Principal: "*"
+            Action: s3:*
+            Resource: [!GetAtt LogBucket.Arn, !Sub "${LogBucket.Arn}/*"]
+            Condition: { Bool: { aws:SecureTransport: "false" } }
+
   Distribution:
     Type: AWS::CloudFront::Distribution
     Properties:
       DistributionConfig:
         Enabled: true
+        WebACLId: !If [UseWaf, !GetAtt WebAcl.Arn, !Ref "AWS::NoValue"]
+        Logging: !If
+          - UseLogs
+          - { Bucket: !GetAtt LogBucket.DomainName, Prefix: web/, IncludeCookies: false }
+          - !Ref "AWS::NoValue"
         Comment: !Sub "proofsec web ${Stage}"
         DefaultRootObject: index.html
         HttpVersion: http2and3

@@ -25,6 +25,9 @@ capabilities = "CAPABILITY_IAM"
 confirm_changeset = true
 fail_on_empty_changeset = false
 resolve_s3 = true
+# PS-49: sempre reenvia os pacotes. Sem isto o SAM pula o upload quando ja existe objeto com o mesmo hash,
+# e um pacote trocado no bucket entre a revisao do changeset e a execucao seria reaproveitado.
+force_upload = true
 # region = "us-east-1"   # sem isto, vale a região do perfil da AWS CLI
 parameter_overrides = "Stage=\"dev\""
 tags = "Project=\"proofsec\" Environment=\"dev\" ManagedBy=\"sam\" Owner=\"engineering\""
@@ -36,6 +39,9 @@ stack_name = "proofsec-prod"
 capabilities = "CAPABILITY_IAM"
 confirm_changeset = true
 resolve_s3 = true
+# PS-49: sempre reenvia os pacotes. Sem isto o SAM pula o upload quando ja existe objeto com o mesmo hash,
+# e um pacote trocado no bucket entre a revisao do changeset e a execucao seria reaproveitado.
+force_upload = true
 # Perfil AWS endurecido, ainda exclusivamente em Solana devnet. Preencha todos os
 # placeholders antes de gerar o changeset; as Rules recusam valores inseguros.
 parameter_overrides = "Stage=\"prod\" AllowedOrigin=\"https://SEU-DOMINIO\" SiwsDomains=\"SEU-DOMINIO\" AlertEmail=\"SEU-EMAIL\" SolanaRpcUrl=\"https://SEU-RPC-DEVNET\" SolanaChainId=\"devnet\" ProgramId=\"SUBSTITUA-PELO-PROGRAM-ID-DEVNET\""

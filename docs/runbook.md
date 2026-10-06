@@ -60,7 +60,12 @@ Nunca usar credenciais ou carteiras de produção em dev.
    sam build            # precisa do Python da runtime (3.12) ou use --use-container
    sam deploy --no-execute-changeset
    ```
-   Revisar o changeset → **aprovação humana** → `sam deploy`. Parâmetros principais:
+   Revisar o changeset → **aprovação humana** → `sam deploy`.
+   **Antes de executar (PS-49):** quem executa deve estar num commit revisado com a árvore limpa
+   (`git status`), rodar o próprio `sam build` (não reutilizar o `.aws-sam/build` gerado por um agente) e
+   o `sam deploy`. O `samconfig.toml` tem `force_upload = true`, que reenvia os pacotes: sem isso o SAM
+   reaproveitaria um objeto já existente no bucket de artefatos com o mesmo hash (o agente de revisão
+   pode escrever nesse bucket). Parâmetros principais:
    `ProgramId`, `SiwsDomains`, `AllowedOrigin`, `AlertEmail` (confirme o e-mail do SNS),
    `CompanyWallet`, `EnableLlm`. Fora de `dev`, as `Rules` do template recusam
    `AllowedOrigin='*'`, `localhost` em `SiwsDomains`, `AlertEmail` vazio e o `ProgramId`

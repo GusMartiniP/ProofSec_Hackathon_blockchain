@@ -24,5 +24,8 @@ capabilities = "CAPABILITY_IAM"
 confirm_changeset = true
 fail_on_empty_changeset = false
 resolve_s3 = true
+# PS-49: sempre reenvia os pacotes. Sem isto o SAM pula o upload quando ja existe objeto com o mesmo hash,
+# e um pacote trocado no bucket entre a revisao do changeset e a execucao seria reaproveitado.
+force_upload = true
 parameter_overrides = "Stage=\"dev\" ApiUrl=\"COLE-O-ApiEndpoint\" AlertsTopicArn=\"COLE-O-AlertsTopicArn\" ScheduleState=\"DISABLED\""
 tags = "Project=\"proofsec\" Environment=\"dev\" ManagedBy=\"sam\" Owner=\"engineering\" Component=\"agent\""

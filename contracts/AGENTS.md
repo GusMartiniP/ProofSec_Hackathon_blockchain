@@ -126,3 +126,6 @@ Read the docs → list the affected invariants → minimal change → tests → 
 - [ ] Off-chain layout consumers updated
 - [ ] IDL synced
 - [ ] Tests for every new path (see `tests/AGENTS.md` in this folder)
+
+- **Cluster padrão = `localnet` (PS-48).** `anchor test` só sobe o validador local nesse caso; nunca deixe
+  `[provider] cluster = "devnet"` em `Anchor.toml`. Deploy na devnet só com `--provider.cluster devnet` explícito.

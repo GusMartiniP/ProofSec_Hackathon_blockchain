@@ -13,7 +13,10 @@ proofsec = "HCYkSp64qdMRjiCbauEzPhx9VtNGB6fp5NvKdCRb8tjj"
 proofsec = "HCYkSp64qdMRjiCbauEzPhx9VtNGB6fp5NvKdCRb8tjj"
 
 [provider]
-cluster = "devnet"
+# PS-48: o padrao precisa ser localnet. `anchor test` so sobe o validador local quando o cluster e
+# localnet; com `devnet` aqui, um teste descuidado rodaria (e implantaria o programa) na devnet real.
+# Deploy na devnet: sempre explicito, `anchor deploy --provider.cluster devnet`.
+cluster = "localnet"
 wallet = "~/.config/solana/id.json"
 
 [scripts]
