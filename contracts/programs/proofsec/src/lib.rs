@@ -31,7 +31,7 @@ use errors::ProofSecError;
 use events::*;
 use state::*;
 
-declare_id!("PrfSec1111111111111111111111111111111111111");
+declare_id!("HCYkSp64qdMRjiCbauEzPhx9VtNGB6fp5NvKdCRb8tjj");
 
 #[program]
 pub mod proofsec {

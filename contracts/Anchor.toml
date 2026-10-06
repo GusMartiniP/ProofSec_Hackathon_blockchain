@@ -6,24 +6,23 @@ package_manager = "npm"
 resolution = true
 skip-lint = false
 
-[programs.localnet]
-proofsec = "PrfSec1111111111111111111111111111111111111"
-
 [programs.devnet]
-proofsec = "PrfSec1111111111111111111111111111111111111"
+proofsec = "HCYkSp64qdMRjiCbauEzPhx9VtNGB6fp5NvKdCRb8tjj"
+
+[programs.localnet]
+proofsec = "HCYkSp64qdMRjiCbauEzPhx9VtNGB6fp5NvKdCRb8tjj"
 
 [provider]
-cluster = "localnet"
+cluster = "devnet"
 wallet = "~/.config/solana/id.json"
-
-[test]
-# initialize_config exige a upgrade authority (PS-03): o programa precisa ser
-# implantado como upgradeable também nos testes (validator legado).
-upgradeable = true
 
 [scripts]
 test = "npx ts-mocha -p ./tsconfig.json -t 1000000 'tests/**/*.ts'"
 
 [hooks]
-# Depois de cada build, copia o IDL gerado de verdade para o frontend e o agente.
 post_build = "node scripts/sync-idl.mjs"
+
+[test]
+startup_wait = 30000
+shutdown_wait = 2000
+upgradeable = true

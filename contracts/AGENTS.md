@@ -95,8 +95,9 @@ See `docs/security-review.md`:
 
 - PS-01, PS-02, PS-03, PS-04, PS-05 (contract part), PS-14 and PS-16 are **fixed in code**
   with regression tests named by ID in `tests/proofsec.ts` (2026-10-02).
-- **PS-17 (open):** the program has never been compiled. First `anchor build` + `anchor test`
-  must run on a machine with registry access; record the results in `docs/security-review.md`.
+- **PS-17 (closed locally):** `anchor build` passed and `anchor test` completed 34/34 on
+  2026-10-06. **PS-46 remains open:** choose/protect the official devnet program keypair and
+  synchronize the Program ID across every consumer before deploy.
 
 Any new finding: regression test named with its ID, in the same task as the fix.
 

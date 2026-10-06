@@ -20,7 +20,7 @@ import sys
 ROOT = pathlib.Path(__file__).resolve().parents[1]
 REPO = ROOT.parent
 SRC = ROOT / "programs/proofsec/src"
-PROGRAM_ID = "PrfSec1111111111111111111111111111111111111"
+PROGRAM_ID = "HCYkSp64qdMRjiCbauEzPhx9VtNGB6fp5NvKdCRb8tjj"
 
 SYSTEM = "11111111111111111111111111111111"
 TOKEN = "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA"

@@ -1,5 +1,5 @@
 {
-  "address": "PrfSec1111111111111111111111111111111111111",
+  "address": "HCYkSp64qdMRjiCbauEzPhx9VtNGB6fp5NvKdCRb8tjj",
   "metadata": {
     "name": "proofsec",
     "version": "0.3.0",
@@ -777,7 +777,7 @@
           "docs": [
             "O próprio programa, para localizar a conta ProgramData."
           ],
-          "address": "PrfSec1111111111111111111111111111111111111"
+          "address": "HCYkSp64qdMRjiCbauEzPhx9VtNGB6fp5NvKdCRb8tjj"
         },
         {
           "name": "program_data",
