@@ -70,7 +70,7 @@ reais continuam dependentes da futura conta dev.
 | PS-41 | Low | executor tratava qualquer erro de leitura da ATA como "empresa sem ATA" (recusa definitiva) | `core.test.ts` (2 testes; mutação detectada) | Corrigido no código · revisão independente pendente |
 | PS-42 | Medium | frontend assinava o financiamento com valor, prazos, pesquisador e hash do escopo vindos do backend sem conferir | `tests/meta-integrity.test.ts` (6 testes) | Corrigido no código · revisão independente pendente |
 | PS-43 | Low | `POST /jobs` sem limite de rascunhos por carteira (spam na tabela e nas listagens) | `test_draft_quota_per_wallet` | Corrigido no código · revisão independente pendente |
-| PS-44 | High | frontend fixa Next.js 14.2.35, versão reportada pelo `npm audit` com vulnerabilidades críticas; export estático reduz a superfície de servidor, mas não protege `next dev`/`next start` nem uma futura migração para SSR | atualização coordenada do Next/React e novo build/typecheck | **Aberto** |
+| PS-44 | High | frontend fixa Next.js 14.2.35, versão reportada pelo `npm audit` com vulnerabilidades críticas; export estático reduz a superfície de servidor, mas não protege `next dev`/`next start` nem uma futura migração para SSR | `npm audit` (críticos 0), build estático, typecheck e `test:meta` | Corrigido no código (Next 16.4.0) · revisão independente pendente · React 19 pendente |
 | PS-45 | Medium | dependências JavaScript compartilhadas de Solana/Anchor carregam cadeias vulneráveis (`toml`, `jayson`, `stream-json`, `uuid`, `bigint-buffer`) nos três workspaces | migração coordenada; não usar `npm audit fix --force` | **Aberto** |
 | PS-46 | Medium | Program ID declarado/provisório não coincide com a chave pública gerada em `target/deploy`; o build local passa com aviso, mas o deploy real não pode prosseguir com identidades divergentes | escolher a keypair oficial devnet, sincronizar todas as áreas e regerar IDLs | **Corrigido em devnet (2026-10-06)** |
 
@@ -329,7 +329,13 @@ leitura.
   ao menos a linha corrigida 15.5.24 (ou avaliar o Next 16.3.8 sugerido pelo audit), reconciliar
   React e wallet adapters e repetir build/typecheck; manter export estático e nunca expor o
   servidor de desenvolvimento até a correção. Verificação: `npm audit`, build estático e revisão
-  do artefato. Dono: Claude Code. Status: aberto.
+  do artefato. Dono: Claude Code. Status: **corrigido (2026-10-06)** na branch
+  `fix/ps-44-next-upgrade`: Next.js 16.4.0 (fixado), React 18.3.1 mantido, `next dev/build --webpack`
+  (o Turbopack, padrão do Next 16, recusa o `webpack()` de `next.config.mjs` que dá `Buffer` ao
+  Anchor/web3.js). `npm audit`: críticos 1 → 0; `next` e `postcss` deixaram a lista. Typecheck, build
+  estático e `test:meta` (18) passam. Residual: React 18 está obsoleto no Next 16 (removido no 17),
+  o que pede migrar para React 19 junto com os wallet adapters; o script `lint` (`next lint`, removido
+  no Next 16 e sem ESLint configurado) foi retirado. Revisão independente: pendente.
 - **PS-45 · Medium · frontend/agente/contratos · respectivos `package.json` e lockfiles:** a
   cadeia compartilhada inclui `@anchor-lang/core@1.2.0` → `toml@3.0.0`,
   `@solana/web3.js@1.99.0` → `jayson`, `stream-json` e `uuid`, e
