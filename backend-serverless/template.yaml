@@ -351,6 +351,16 @@ Resources:
               Action: ssm:GetParameter
               Resource: !Sub "arn:${AWS::Partition}:ssm:${AWS::Region}:${AWS::AccountId}:parameter/proofsec/${Stage}/jwt-secret"
 
+  # O SAM nao cria esta permissao para authorizers de HTTP API: sem ela toda rota autenticada
+  # devolve 500 ("doesn't have permissions to call the authorizer"). Limitada a esta API.
+  AuthorizerInvokePermission:
+    Type: AWS::Lambda::Permission
+    Properties:
+      Action: lambda:InvokeFunction
+      FunctionName: !Ref AuthorizerFunction
+      Principal: apigateway.amazonaws.com
+      SourceArn: !Sub "arn:${AWS::Partition}:execute-api:${AWS::Region}:${AWS::AccountId}:${ProofSecApi}/authorizers/*"
+
   AuthNonceFunction:
     Type: AWS::Serverless::Function
     Properties:
