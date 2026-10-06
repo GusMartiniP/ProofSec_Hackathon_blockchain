@@ -1,0 +1,22 @@
+# Headers de segurança do Amplify Hosting (PS-12). Espelha securityHeaders() de next.config.mjs
+# em modo produção, já que `output: 'export'` não envia headers.
+#
+# Deploy manual (zip/arrastar pasta): Amplify console > App settings > Custom headers > Edit,
+# cole este arquivo inteiro. Deploy por Git: deixe este arquivo na raiz do repositório do app.
+#
+# Ao mudar API, RPC ou domínio, atualize o connect-src abaixo e o next.config.mjs juntos.
+customHeaders:
+  - pattern: '**'
+    headers:
+      - key: Content-Security-Policy
+        value: "default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; font-src 'self' data:; connect-src 'self' https://*.amazonaws.com https://mgzbzfov0g.execute-api.us-east-1.amazonaws.com https://api.devnet.solana.com wss://api.devnet.solana.com; object-src 'none'; base-uri 'self'; form-action 'self'; frame-ancestors 'none'"
+      - key: X-Content-Type-Options
+        value: nosniff
+      - key: Referrer-Policy
+        value: strict-origin-when-cross-origin
+      - key: X-Frame-Options
+        value: DENY
+      - key: Permissions-Policy
+        value: camera=(), microphone=(), geolocation=()
+      - key: Strict-Transport-Security
+        value: max-age=31536000; includeSubDomains
