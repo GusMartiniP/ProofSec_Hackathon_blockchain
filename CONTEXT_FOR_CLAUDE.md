@@ -44,11 +44,15 @@ MVP para o hackathon **Superteam Brasil / Colosseum (Solana)**: **escrow program
 
 - `AGENTS.md` na raiz + um por área. Nunca criar `CLAUDE.md`.
 - Papéis: Antigravity orquestra e revisa · Codex = `contracts/` · Kiro = AWS (`backend-serverless/`, `agent/template.yaml`) · Claude Code = construção de código (`frontend/`, `agent/`, `tests/`).
-- Docs: `docs/architecture.md`, `program-design.md`, `threat-model.md`, `security-review.md` (status PS-01..PS-19), `resilience.md`, `runbook.md` (segredos, ordem de deploy, incidentes), `decisions.md` (ADR-001..018).
+- Docs: `docs/architecture.md`, `program-design.md`, `threat-model.md`, `security-review.md` (status PS-01..PS-46), `resilience.md`, `runbook.md` (segredos, ordem de deploy, incidentes), `decisions.md` (ADR-001..023).
 
 ## Pendências
 
-- **PS-17:** nada foi compilado/implantado neste ambiente (registries bloqueados). Rodar `anchor build && anchor test`, `sam validate --lint && sam build`, `npm install && npm run build` (frontend) e `npm install && npm test` (agent).
+- **PS-17 concluído localmente:** contrato 34/34, backend 72/72, agente 14/14, frontend build/typecheck e `sam validate --lint`/`sam build` nos dois templates. O programa foi implantado na devnet; nenhuma stack AWS foi implantada.
+- **PS-44/45:** atualizar Next.js e a cadeia Solana/Anchor de modo coordenado. PS-46 foi corrigido:
+  o programa devnet é `HCYkSp64qdMRjiCbauEzPhx9VtNGB6fp5NvKdCRb8tjj`; use este valor em
+  `NEXT_PUBLIC_PROGRAM_ID` quando a configuração local do frontend for criada. A `Config` devnet
+  já existe em `2qX6gWqAiTjLcQCg53UiCpfTnnNgs89GkwbSWfVNRyXQ`.
 - Troca automática de RPC na UI (PS-13, parte frontend); `tests/api-security`; headers no host em export estático.
 - `docs/ProofSec_Manual_Tecnico.pdf` é da rodada anterior (não mostra timeout de disputa, Nonces/SSM/SNS/DLQ nem o executor Lambda).
 - V2: árbitro/tesouraria em multisig Squads, atestação de reputação (SAS), vault em USDC+.

@@ -94,16 +94,17 @@ avm install latest && avm use latest
 
 cd contracts
 npm install
-anchor keys sync              # gera o program id e atualiza lib.rs/Anchor.toml
+anchor keys sync              # só após escolher/proteger a keypair oficial devnet (PS-46)
 anchor build                  # o hook post_build copia o IDL real para frontend/ e agent/
-anchor test                   # testes (inclui os ataques C1/C2); RUN_SLOW=1 roda o de liberação otimista
+anchor test                   # 34 testes, incluindo ataques e cenários dependentes do relógio
 anchor deploy --provider.cluster devnet
 ```
 > Você ainda precisa de uma keypair em `~/.config/solana/id.json` com SOL de devnet. A Solana CLI (`solana-keygen new`, `solana airdrop 2 --url devnet`) é o caminho mais simples.
 > Sem toolchain local? O [Solana Playground](https://beta.solpg.io) compila e faz deploy pelo navegador.
-> Antes do primeiro build, `npm run idl:preview` gera um IDL provisório equivalente.
+> O primeiro build local passou. `npm run idl:preview` permanece apenas como fallback sem toolchain;
+> o IDL distribuído deve sempre vir de `anchor build`.
 
-Depois do deploy, inicialize a configuração da plataforma pelo próprio frontend (card "Configuração inicial"), **com a mesma carteira que fez o deploy** — só a upgrade authority consegue (PS-03).
+Depois do deploy, inicialize a configuração da plataforma pelo próprio frontend (card "Configuração inicial"), **com a mesma carteira que fez o deploy** — só a upgrade authority consegue (PS-03). A Config da demonstração devnet já foi inicializada em `2qX6gWqAiTjLcQCg53UiCpfTnnNgs89GkwbSWfVNRyXQ`.
 
 ### 2. Backend AWS
 ```bash

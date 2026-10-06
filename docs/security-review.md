@@ -1,11 +1,13 @@
 # Security review — ProofSec
 
 Revisão independente (orquestrador), aplicando as políticas dos `AGENTS.md` ao código.
-Última revisão independente: 2026-10-02 · Correções estáticas adicionais: 2026-10-05/06 ·
+Última revisão independente: 2026-10-06 · Correções estáticas adicionais: 2026-10-05/06 ·
 Escopo: `contracts/`, `backend-serverless/`, `agent/`, `frontend/`.
 
-**Ressalva:** o contrato ainda não foi compilado e o frontend ainda não passou por build
-(ver PS-17). Achados de compilação podem surgir no primeiro `anchor build` / `npm run build`.
+**Estado da validação local:** o primeiro ciclo completo de build e testes foi concluído
+(PS-17). Nesta etapa permanecem pendentes as verificações que exigem uma conta AWS real e a
+remediação coordenada das dependências
+(PS-44/45), além dos demais achados abertos da tabela.
 
 ## Formato obrigatório de achado
 
@@ -20,8 +22,8 @@ Status: Aberto · Em andamento · Corrigido · Aceito (risco aceito, com justifi
 ## Status após a rodada de correções (2026-10-06)
 
 Decisões P1–P6 tomadas com os padrões recomendados (ADR-012 a ADR-018, `decisions.md`).
-"Corrigido no código" = implementado e verificado aqui; a confirmação final depende do
-primeiro build real (PS-17).
+"Corrigido no código" = implementado e verificado localmente; integrações com serviços AWS
+reais continuam dependentes da futura conta dev.
 
 | ID | Sev. | Correção | Verificação | Status |
 |---|---|---|---|---|
@@ -41,17 +43,17 @@ primeiro build real (PS-17).
 | PS-14 | Info | `rent_payer` no job: o rent volta para quem pagou (agente ou cliente) | `proofsec.ts` "PS-14" | Corrigido no código |
 | PS-15 | Info | aviso na UI (um delegate por conta) e checagem do delegate no executor | revisão manual; `core.test.ts` | Corrigido no código |
 | PS-16 | Info | `surfnet_timeTravel` no lugar de `sleep` | `proofsec.ts` bloco "dependentes do relógio" | Corrigido no código |
-| PS-17 | Info | primeiro `anchor build`/`anchor test`, `sam validate/build`, `npm run build` e testes | backend 72/72, agent 14/14, dois templates no checker offline, bundle Lambda e frontend build OK; Anchor/SAM reais pendentes | **Aberto** |
+| PS-17 | Info | primeiro `anchor build`/`anchor test`, `sam validate/build`, `npm run build` e testes | contrato 34/34; backend 72/72; agente 14/14; frontend build/typecheck; `sam validate --lint` e `sam build` nos dois templates | **Corrigido localmente** |
 | PS-18 | Low | `.gitignore` completo | — | Corrigido |
 | PS-19 | Info | sem pausa de emergência (ADR-011) | — | Aceito |
 | PS-20 | Medium | tamanho do relatório integra a assinatura SigV4 do PUT; entrada malformada retorna 400 | `test_upload_only_for_linked_researcher`; `test_malformed_numeric_and_hash_inputs_are_400` | Corrigido no código · testes OK |
-| PS-21 | Medium | backend e executor restritos a devnet; ambientes não-dev rejeitam CORS aberto, localhost, e ProgramId provisório | revisão do template; `sam validate` pendente em PS-17 | Corrigido no código · revisão independente pendente |
+| PS-21 | Medium | backend e executor restritos a devnet; ambientes não-dev rejeitam CORS aberto, localhost, e ProgramId provisório | revisão do template; `sam validate --lint` aprovado nos dois templates | Corrigido localmente · revisão independente pendente |
 | PS-22 | Info | documentação esclarece que o indexador de 1 min não usa DLQ; a próxima rodada reconcilia e falhas persistentes disparam alarme | revisão documental | Corrigido no código |
 | PS-23 | Medium | consultas das GSIs percorrem `LastEvaluatedKey`, evitando omissão de jobs e propostas após a primeira página | `test_public_listing_does_not_silently_drop_jobs_past_100`; `test_propose_quota_counts_beyond_first_100_items` | Corrigido no código · testes OK |
-| PS-24 | Medium | regras GuardDuty/Security Hub limitadas à conta AWS local; findings agregados de outras contas não alimentam a carteira/LLM | revisão do template; `sam validate` pendente em PS-17 | Corrigido no código · revisão independente pendente |
+| PS-24 | Medium | regras GuardDuty/Security Hub limitadas à conta AWS local; findings agregados de outras contas não alimentam a carteira/LLM | revisão do template; `sam validate --lint` e `sam build` aprovados | Corrigido localmente · revisão independente pendente |
 | PS-25 | Medium | eventos do agente usam ID determinístico, `PutItem` condicional e processam todo o lote Security Hub | `test_event_batch_is_idempotent` | Confirmado (idempotência); lote sem refiltro → PS-32 |
 | PS-26 | Medium | JWT, base64 e corpos JSON malformados são negados sem exceção; `alg`, `exp` finito e `sub` são obrigatórios | `TestAuthorizerRobustness`; `TestHttpHelpers` | Parcial: ainda havia 500 pré-auth → PS-33 (corrigido) |
-| PS-27 | Medium | metric filters cobrem 500 convertidos pelo decorator e falhas por item capturadas pelo indexador | revisão do template; `sam validate` pendente em PS-17 | Confirmado (estático); `sam validate` pendente |
+| PS-27 | Medium | metric filters cobrem 500 convertidos pelo decorator e falhas por item capturadas pelo indexador | revisão do template; `sam validate --lint` e `sam build` aprovados | Confirmado localmente; integração CloudWatch pendente |
 | PS-28 | Medium | candidatura usa `UpdateItem` condicional e não regrava snapshot obsoleto sobre estado reconciliado | `test_apply_does_not_overwrite_concurrent_sync`; testes de candidatura | Confirmado; corrida inversa → PS-36 |
 | PS-29 | Medium | criação/evidência validam tipos, limites, precisão USDC, inteiros e buffers truncados | `TestCreateJobValidation`; `TestEvidenceInputs`; `TestDecoders` | Parcial: Decimal/CPU/overflow → PS-33 (corrigido) |
 | PS-30 | Low | `INFORMATIONAL` vira LOW; chave interna menor que 32 caracteres falha fechada | duas regressões dedicadas | Confirmado (ver PS-32 sobre INFORMATIONAL) |
@@ -68,6 +70,9 @@ primeiro build real (PS-17).
 | PS-41 | Low | executor tratava qualquer erro de leitura da ATA como "empresa sem ATA" (recusa definitiva) | `core.test.ts` (2 testes; mutação detectada) | Corrigido no código · revisão independente pendente |
 | PS-42 | Medium | frontend assinava o financiamento com valor, prazos, pesquisador e hash do escopo vindos do backend sem conferir | `tests/meta-integrity.test.ts` (6 testes) | Corrigido no código · revisão independente pendente |
 | PS-43 | Low | `POST /jobs` sem limite de rascunhos por carteira (spam na tabela e nas listagens) | `test_draft_quota_per_wallet` | Corrigido no código · revisão independente pendente |
+| PS-44 | High | frontend fixa Next.js 14.2.35, versão reportada pelo `npm audit` com vulnerabilidades críticas; export estático reduz a superfície de servidor, mas não protege `next dev`/`next start` nem uma futura migração para SSR | atualização coordenada do Next/React e novo build/typecheck | **Aberto** |
+| PS-45 | Medium | dependências JavaScript compartilhadas de Solana/Anchor carregam cadeias vulneráveis (`toml`, `jayson`, `stream-json`, `uuid`, `bigint-buffer`) nos três workspaces | migração coordenada; não usar `npm audit fix --force` | **Aberto** |
+| PS-46 | Medium | Program ID declarado/provisório não coincide com a chave pública gerada em `target/deploy`; o build local passa com aviso, mas o deploy real não pode prosseguir com identidades divergentes | escolher a keypair oficial devnet, sincronizar todas as áreas e regerar IDLs | **Corrigido em devnet (2026-10-06)** |
 
 ### Detalhamento PS-20–PS-24
 
@@ -79,7 +84,8 @@ primeiro build real (PS-17).
 - **PS-21 · Medium · configuração SAM · ambos os templates:** opções de mainnet/testnet e
   defaults não-dev coerentes com devnet permitiam erro operacional contrário ao escopo do MVP.
   A rede foi restrita a devnet, e ambientes não-dev rejeitam CORS aberto, localhost e ProgramId
-  provisório. Verificação: `sam validate` pendente. Dono: Kiro. Status: corrigido no código.
+  provisório. Verificação: `sam validate --lint` e `sam build` aprovados nos dois templates.
+  Dono: Kiro. Status: corrigido localmente; integração AWS pendente.
 - **PS-22 · Info · resiliência/documentação:** a política dizia que todos os alvos EventBridge
   usavam DLQ, mas o indexador deliberadamente depende da próxima rodada e do alarme persistente.
   A documentação agora explicita essa exceção; não houve mudança de IAM. Verificação: revisão
@@ -91,7 +97,8 @@ primeiro build real (PS-17).
 - **PS-24 · Medium · EventBridge/LLM:** findings agregados de outra conta poderiam ser
   associados à `CompanyWallet` local e enviados ao provedor de LLM. Os padrões agora exigem a
   conta AWS local, inclusive `findings[].AwsAccountId` no Security Hub. Verificação: `sam
-  validate` pendente. Dono: Kiro. Status: corrigido no código; revisão independente pendente.
+  validate --lint` e `sam build` aprovados. Dono: Kiro. Status: corrigido localmente; revisão
+  independente e evento AWS real pendentes.
 
 ### Detalhamento PS-25–PS-31
 
@@ -110,8 +117,9 @@ primeiro build real (PS-17).
 - **PS-27 · Medium · observabilidade · `template.yaml`:** o decorator converte exceções do
   login em HTTP 500 e o indexador captura falhas por item, portanto a métrica nativa
   `AWS/Lambda Errors` permanecia em zero nesses casos. Filtros do log estruturado e alarmes
-  específicos agora cobrem ambos. Verificação: revisão estática; `sam validate --lint`
-  pendente em PS-17. Dono: Kiro. Status: corrigido no código; revisão independente pendente.
+  específicos agora cobrem ambos. Verificação: revisão estática, `sam validate --lint` e
+  `sam build` aprovados. Dono: Kiro. Status: corrigido localmente; integração CloudWatch e
+  revisão independente pendentes.
 - **PS-28 · Medium · DynamoDB/jobs · `functions/jobs.py`, `common/db.py`, `template.yaml`:**
   `apply` lia e regravava o item inteiro; uma reconciliação concorrente podia ser perdida,
   contrariando a precedência da chain. A candidatura agora é um `UpdateItem` condicional que
@@ -139,7 +147,8 @@ primeiro build real (PS-17).
 
 Revisor desta rodada: Claude Code (não é o autor das correções PS-25–PS-31; fez a correção
 de PS-33, que precisa de revisão por outro agente). Sem deploy e sem acesso à AWS;
-`sam validate`/`sam build` seguem pendentes. Suíte backend 78/78 e `check:template` OK.
+naquele ponto, `sam validate`/`sam build` ainda estavam pendentes; foram aprovados depois no
+fechamento do PS-17. Suíte backend 78/78 e `check:template` OK.
 Invariantes: INV-8 intacto (identidade só vem do authorizer, de `x-agent-key` ou de
 `COMPANY_WALLET`; `researcher` no body é alvo de atribuição validado como pubkey, nunca
 identidade); INV-1 com ressalva em PS-36; IDL e arquivos gerados não foram tocados.
@@ -209,8 +218,9 @@ respeita o limite de seed do PDA e a regex `[a-z0-9]{1,32}`.
   (que não aceita `Condition` por evento) e virou `AgentDemoRule` + `AgentDemoRulePermission`
   com a condição `DemoEventsEnabled` (dev e `CompanyWallet`), filtrando também a conta; além
   disso `agent.on_event` ignora `proofsec.demo` quando `STAGE != dev`. `check_template.py` passou
-  a entender `Fn::And` como condição que implica a condição do alvo. `sam validate` pendente.
-  Dono: Claude Code (Kiro revisa). Status: corrigido no código; revisão independente pendente.
+  a entender `Fn::And` como condição que implica a condição do alvo. `sam validate --lint` e
+  `sam build` foram aprovados no fechamento do PS-17. Dono: Claude Code (Kiro revisa). Status:
+  corrigido no código; revisão independente pendente.
 - **PS-36 · Low · DynamoDB · `common/sync.py:317`, `agent.py:200,220`:** `apply_onchain`,
   `mark_executed` e `mark_rejected` regravam o item inteiro lido antes. Uma candidatura
   concorrente pode ser perdida, e dois syncs concorrentes podem fazer um snapshot mais antigo da
@@ -235,7 +245,7 @@ leitura.
   `approve/claim/resolve` com taxa > 0 falha até o admin corrigir; uma ATA congelada do
   pesquisador faz `resolve_dispute_timeout` (50/50) falhar e só o árbitro destrava. Contraria
   INV-4 (saída por regras públicas) e depende do admin. Remediação: congelar a tesouraria no
-  job (campo novo antes de `job_id`, ADR-018; o programa ainda não foi implantado) e prever uma
+  job (campo novo antes de `job_id`, ADR-018; a correção integrou o binário devnet) e prever uma
   saída pública final (ex.: reembolso ao cliente após `dispute_deadline` + carência) para ATAs
   congeladas. Verificação: testes com ATA congelada. Dono: Codex. Status: corrigido na branch (ADR-021). Em devnet o
   mint de teste não tem freeze, então o risco é de mainnet.
@@ -300,11 +310,58 @@ leitura.
   instalado no WSL (Rust 1.99, Agave 3.1.10, Anchor 1.2.0, Surfpool 1.6.0): `anchor build` limpo
   (SBPF v3, IDL real copiado para frontend e agente), `anchor test` com o validator padrão:
   **34 passando, 0 falhando**, incluindo os testes antigos de relógio (PS-02 etc.) e 5 novos do
-  PS-37. Este foi o primeiro build e a primeira execução real da suíte do contrato (PS-17
-  parcial: faltam `sam validate`/`sam build`). Mutações no contrato detectadas: tesouraria da
+  PS-37. Este foi o primeiro build e a primeira execução real da suíte do contrato. PS-17 foi
+  concluído localmente depois que `sam validate --lint` e `sam build` também passaram nos dois
+  templates. Mutações no contrato detectadas: tesouraria da
   config em `approve_and_release`, recuperação sem carência e recuperação em qualquer estado.
   O validator legado (`solana-test-validator` 3.1.10) não carrega SBPF v3 ("Program is not
   deployed"); com `anchor build --arch v0` ele roda 27 testes e deixa 7 pendentes.
+
+### Achados de toolchain e dependências — PS-44–PS-46 (2026-10-06)
+
+- **PS-44 · High · frontend · `frontend/package.json`, `frontend/package-lock.json`,
+  `frontend/next.config.mjs`:** o `npm audit` online classifica o Next.js 14.2.35 como crítico,
+  incluindo avisos de RCE sem autenticação, XSS, SSRF, envenenamento de cache, request smuggling
+  e DoS. A arquitetura atual usa export estático para S3/CloudFront, o que reduz materialmente
+  a superfície dos avisos de servidor em produção, mas `next dev`, `next start` ou uma futura
+  migração para SSR continuam expostos. Impacto: comprometimento ou indisponibilidade do host
+  caso um modo servidor vulnerável seja publicado. Remediação: Claude Code deve atualizar para
+  ao menos a linha corrigida 15.5.24 (ou avaliar o Next 16.3.8 sugerido pelo audit), reconciliar
+  React e wallet adapters e repetir build/typecheck; manter export estático e nunca expor o
+  servidor de desenvolvimento até a correção. Verificação: `npm audit`, build estático e revisão
+  do artefato. Dono: Claude Code. Status: aberto.
+- **PS-45 · Medium · frontend/agente/contratos · respectivos `package.json` e lockfiles:** a
+  cadeia compartilhada inclui `@anchor-lang/core@1.2.0` → `toml@3.0.0`,
+  `@solana/web3.js@1.99.0` → `jayson`, `stream-json` e `uuid`, e
+  `@solana/spl-token@0.4.15` → `bigint-buffer`; o workspace de contratos também tem avisos na
+  cadeia do Mocha. Os totais observados foram frontend 38 (1 crítico, 22 altos, 15 moderados),
+  agente 12 (5 altos, 7 moderados) e contratos 16 (9 altos, 7 moderados). Cenário: RPC ou entrada
+  configurada maliciosamente explora DoS/prototype pollution nas bibliotecas transitivas.
+  Impacto: indisponibilidade, comportamento inesperado ou risco de cadeia de suprimentos. O
+  `npm audit fix --force` propõe saltos incompatíveis (inclusive downgrade de SPL Token e versões
+  inválidas/incompatíveis de Anchor/Mocha), portanto não deve ser usado. Remediação: migração
+  coordenada de Solana/Anchor nos três consumidores, RPCs confiáveis e testes completos antes de
+  aceitar novos lockfiles. Verificação: audits sem achados aplicáveis, testes e builds das três
+  áreas. Donos: Claude Code (frontend/agente) e Codex (contratos). Status: aberto.
+- **PS-46 · Medium · contrato/configuração cross-area · `contracts/Anchor.toml`,
+  `contracts/programs/proofsec/src/lib.rs`, templates SAM, defaults do backend/agente e IDLs
+  gerados:** o endereço provisório `PrfSec111…` não coincide com a chave pública da keypair
+  criada em `contracts/target/deploy`. O build e os testes locais passam com aviso porque o
+  validator consegue implantar o binário, mas um deploy devnet não pode usar duas identidades.
+  Impacto: falha de deploy ou clientes consultando/assinando para o programa errado. Remediação:
+  escolher e proteger a keypair oficial do programa devnet, executar `anchor keys sync`, compilar
+  para regerar e sincronizar os IDLs e atualizar `ProgramId`/variáveis dos consumidores na mesma
+  tarefa; nunca commitar a keypair. Verificação: `anchor build` sem aviso de divergência, IDLs sem
+  edição manual e todos os testes cross-area aprovados. Dono: Codex, coordenado com Kiro e Claude
+  Code. Status: corrigido em devnet em 2026-10-06: `anchor keys sync --provider.cluster devnet`,
+  `anchor build`, 34 testes Anchor e `anchor deploy --provider.cluster devnet` publicaram
+  `HCYkSp64qdMRjiCbauEzPhx9VtNGB6fp5NvKdCRb8tjj`. Verificação independente:
+  `solana program show HCYkSp64qdMRjiCbauEzPhx9VtNGB6fp5NvKdCRb8tjj --url devnet` confirmou
+  BPF upgradeable, ProgramData `CxG6HXsy82bJSeCmyrMjHDBpzVhMX41PWp2draP3AR23` e a autoridade
+  de upgrade da carteira dev. A `Config` foi inicializada após aprovação humana na transação
+  `38Zz2Tn1FzemgLi1pC9GEq8bRLH9YoHUnacdLTwrn28exDMA3mRgwjrY5Q1Z2EGbSr5uYJqGAsMW3SqJmcdMvcnT`:
+  PDA `2qX6gWqAiTjLcQCg53UiCpfTnnNgs89GkwbSWfVNRyXQ`, 250 bps, USDC devnet e 24 h; a leitura
+  on-chain confirmou admin, árbitro e tesouraria na carteira dev aprovada.
 
 **Observações (Info, sem ID):** a taxa de throttling por rota é global, então um cliente esgota o
 login de todos (backlog CloudFront+WAF já registrado); `claim_after_review` só aceita o
@@ -316,11 +373,10 @@ exige o PDA como delegate, mas vale como defesa em profundidade); durações de 
 frontend mapeia status desconhecido para `OPEN`; a chave de criptografia é por origem (ADR-017),
 então relatórios cifrados em `localhost` não abrem em produção.
 
-**Riscos residuais a confirmar no primeiro build (PS-17):** import de `ProgramData` no
-prelude do Anchor 1.2; Surfpool implantando o programa como upgradeable com a carteira do
-provider como autoridade (alternativa: `anchor test --validator legacy`, que pula os testes
-de relógio); semântica de `dup` no Anchor 1.x; `RouteSettings`/`LoggingConfig` e os novos
-metric filters no SAM.
+**Riscos residuais após o primeiro build:** o build do contrato emite 18 avisos não fatais de
+`unexpected cfg` vindos dos macros Anchor/Solana (`custom-heap`, `custom-panic`,
+`anchor-debug`); PS-44/45 exigem atualização coordenada de dependências; e filtros, eventos, permissões e cold
+start das Lambdas ainda precisam ser confirmados numa conta AWS dev real.
 
 ## Corrigidos (com teste de regressão)
 
@@ -345,7 +401,7 @@ metric filters no SAM.
 
 | Agente | Itens |
 |---|---|
-| **Codex** (`contracts/`) | PS-17: `anchor build` + `anchor test` e registrar aqui · completar o catálogo de ataques em `contracts/tests/AGENTS.md` |
-| **Kiro** (`backend-serverless/`, `agent/template.yaml`) | PS-17: `sam validate --lint`, `sam build`, changeset do dev · headers de segurança no host (PS-12) · CloudFront+WAF (limite por IP) |
-| **Claude Code** (`frontend/`, `agent/`, `tests/`) | PS-17: `npm run build` (frontend) e `npm test` (agent) · troca automática de RPC na UI (PS-13) · `tests/api-security` · atualizar o manual em PDF |
+| **Codex** (`contracts/`) | PS-46: definir/sincronizar a identidade devnet com todos os consumidores · PS-45: acompanhar migração Anchor/Solana · completar o catálogo de ataques em `contracts/tests/AGENTS.md` |
+| **Kiro** (`backend-serverless/`, `agent/template.yaml`) | gerar e revisar o changeset dev sem executar · confirmar filtros/eventos numa conta real · headers de segurança no host (PS-12) · CloudFront+WAF (limite por IP) |
+| **Claude Code** (`frontend/`, `agent/`, `tests/`) | PS-44: atualizar Next/Tailwind e revalidar o export · PS-45: migração coordenada de dependências · troca automática de RPC na UI (PS-13) · `tests/api-security` · atualizar o manual em PDF |
 | **Antigravity** | revisar cada entrega · manter este arquivo e `decisions.md` |

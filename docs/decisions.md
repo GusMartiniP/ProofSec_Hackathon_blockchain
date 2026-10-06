@@ -297,3 +297,26 @@ resolver tudo). Qualquer uma pode ser revista por novo ADR.
 - **Alternativas:** fechar o `JobAccount` (ver ADR-021); allowlist on-chain (mais estado).
 - **Segurança:** o executor só financia empresas conhecidas. No dev o comportamento é o antigo,
   para a demo. **Operacional:** em staging/prod é preciso preencher `AllowedOwners`.
+
+## ADR-024 — Backend sai do Kiro; Claude Code sobe e testa o ambiente AWS; um usuário IAM por agente · Proposta
+
+- **Decisão:** (1) `backend-serverless/` passa do Kiro para o **Claude Code** (o Kiro deixa de
+  atuar no projeto); a tabela do §1 do `AGENTS.md` e o item "template.yaml revisado por Kiro"
+  passam a refletir isso. (2) O Claude Code gera o changeset (`sam deploy --no-execute-changeset`)
+  e roda os testes contra a stack no ar; **a execução do changeset é humana** (§5). (3) O
+  Antigravity revisa o changeset, o IAM e os resultados; o Codex fica em `contracts/` e só lê a AWS.
+  (4) Identidades: um usuário IAM por agente (Claude Code, Codex, Antigravity), sem console e
+  sem chave no template, com política de bloqueios comum (sem IAM, sem executar changeset, sem
+  ler segredos do SSM nem relatórios do S3). Template: `docs/iam/agent-users.yaml`.
+- **Motivo:** o Kiro foi removido do fluxo e o backend ficou sem dono. O Claude Code já é dono dos
+  consumidores do contrato HTTP (`frontend/src/lib/api.ts`, `agent/core.ts`) e de `tests/`;
+  atribuir-lhe o backend permite mudar contrato e consumidores na mesma tarefa (§4.3).
+- **Alternativas:** Codex como dono do backend (desvia do foco em `contracts/`); Antigravity
+  (perde a independência de revisor); um único usuário IAM compartilhado (sem atribuição no
+  CloudTrail e sem revogação individual).
+- **Segurança:** o autor do backend e dos testes é o mesmo agente; a mitigação é a revisão
+  independente do Antigravity e a execução humana do changeset. Os testes de segurança da API
+  podem ser escritos pelo Codex para separar autoria. Nenhum agente tem `ExecuteChangeSet`.
+- **Operacional:** atualizar o §1 do `AGENTS.md`, `backend-serverless/AGENTS.md` e as
+  referências ao Kiro no runbook depois da aprovação; trocar o perfil do MCP da AWS do root
+  para o usuário do agente. Criar os usuários exige aprovação (IAM, §5).

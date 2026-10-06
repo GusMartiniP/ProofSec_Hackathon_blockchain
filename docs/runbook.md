@@ -12,10 +12,15 @@ O preflight roda testes do backend e do executor, valida os dois templates SAM o
 verifica tipos, gera e carrega o bundle CommonJS da Lambda do executor, compila o frontend e
 confere o IDL provisório contra o Rust. Ele não acessa AWS, não usa carteira e não faz deploy.
 
-Ainda são verificações obrigatórias quando as ferramentas estiverem instaladas: `sam validate
---lint`, `sam build`, `anchor build` e `anchor test`. Para o primeiro uso da conta, instale AWS
-CLI v2 e SAM CLI, prefira IAM Identity Center + MFA, escolha a região e confirme a identidade
-antes de qualquer changeset:
+O primeiro ciclo nativo também foi concluído em 2026-10-06: `sam validate --lint` e `sam build`
+passaram para backend e executor; `anchor build` e `anchor test` passaram com 34/34 testes. O
+host tem AWS CLI 2.37.9, SAM CLI 1.166.2 e Docker Desktop 4.94.0; o WSL Ubuntu tem Rust 1.99,
+Agave 3.1.10, Anchor 1.2.0, Surfpool 1.6.0 e Node 22.22.1. O Docker foi instalado sem aceitar
+automaticamente os termos: no primeiro uso, o dono deve abrir o aplicativo, revisar/aceitar os
+termos e confirmar que o engine iniciou.
+
+Para o primeiro uso da conta, prefira IAM Identity Center + MFA, escolha a região e confirme a
+identidade antes de qualquer changeset:
 
 ```
 aws configure sso
@@ -34,7 +39,12 @@ Nunca usar credenciais ou carteiras de produção em dev.
 
 1. **Programa** (Codex): `anchor build` (sincroniza o IDL) → `anchor test` →
    `anchor deploy --provider.cluster devnet` → inicializar a `Config` com a carteira que fez o
-   deploy (só a upgrade authority consegue, PS-03), pelo card do frontend.
+   deploy (só a upgrade authority consegue, PS-03), pelo card do frontend. Em 2026-10-06 o
+   programa devnet `HCYkSp64qdMRjiCbauEzPhx9VtNGB6fp5NvKdCRb8tjj` foi publicado e sua `Config`
+   foi inicializada após aprovação humana. A PDA é `2qX6gWqAiTjLcQCg53UiCpfTnnNgs89GkwbSWfVNRyXQ`;
+   admin, árbitro e tesouraria são a carteira dev, a taxa é 250 bps, o mint é o USDC devnet e o
+   prazo de disputa é 24 h. A transação finalizada é
+   `38Zz2Tn1FzemgLi1pC9GEq8bRLH9YoHUnacdLTwrn28exDMA3mRgwjrY5Q1Z2EGbSr5uYJqGAsMW3SqJmcdMvcnT`.
 2. **Segredos** (uma vez por stage; nunca no git nem no template, PS-07):
    ```
    aws ssm put-parameter --name /proofsec/dev/jwt-secret     --type SecureString --value "<64+ caracteres aleatórios>"
@@ -68,6 +78,9 @@ Nunca usar credenciais ou carteiras de produção em dev.
      o delegate SPL, a `AgentPolicy` on-chain e uma rodada manual do executor. Fora do dev o
      parâmetro `AllowedOwners` (pubkeys das empresas, separadas por vírgula) é obrigatório
      (ADR-023); na CLI use `ALLOWED_OWNERS`.
+     No PowerShell, se o SAM não localizar o `esbuild` local, execute antes:
+     `$env:PATH = "$(Resolve-Path node_modules\.bin);$env:PATH"`. Não instale `esbuild`
+     globalmente; a versão do projeto é a fonte reproduzível.
    - Parar o agente: `ScheduleState=DISABLED` (stack do executor) **ou** "Desativar" no painel.
 6. **Smoke test:** criar job de 1 USDC → pesquisador se candidata → cliente atribui → aceite →
    evidência → aprovar → conferir no explorer. O árbitro precisa clicar em "Ativar

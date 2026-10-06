@@ -6,17 +6,16 @@ Este arquivo diz **onde o projeto está e o que fazer agora**. O que o sistema �
 
 ## 1. Situação em uma frase
 
-O código das quatro partes (contrato, backend AWS, frontend, agente) está escrito, revisado
-e com os achados de segurança corrigidos, mas **nada foi compilado nem implantado**: nem o
-programa na devnet, nem a stack na AWS. A conta AWS ainda não foi escolhida; será a do dono
-do projeto, usada pela AWS CLI da máquina dele (nenhuma conta está configurada no repo).
+O código das quatro partes (contrato, backend AWS, frontend, agente) está escrito e passou pelo
+primeiro ciclo local completo de build e testes. O programa foi publicado na **devnet** em
+2026-10-06 (`HCYkSp64qdMRjiCbauEzPhx9VtNGB6fp5NvKdCRb8tjj`); nenhuma stack AWS foi implantada.
 
 ## 2. Leia nesta ordem
 
 1. `AGENTS.md` (raiz) e o `AGENTS.md` da área da tarefa.
 2. `CONTEXT_FOR_CLAUDE.md` — visão do sistema (contas, instruções, rotas, segredos).
-3. `docs/security-review.md` — status PS-01..PS-19 e backlog por agente.
-4. `docs/decisions.md` — ADR-001..018 (P1–P6 viraram ADR-012..017; ADR-018 = regra de layout).
+3. `docs/security-review.md` — status PS-01..PS-46 e backlog por agente.
+4. `docs/decisions.md` — ADR-001..023 (P1–P6 viraram ADR-012..017; ADR-018 = regra de layout).
 5. `docs/runbook.md` — segredos no SSM, ordem de deploy, incidentes.
 
 ## 3. O que foi feito na rodada de 2026-10-02
@@ -42,7 +41,7 @@ do projeto, usada pela AWS CLI da máquina dele (nenhuma conta está configurada
 - **Docs/regras:** `security-review.md`, `decisions.md`, `runbook.md`, `resilience.md`,
   todos os `AGENTS.md`, `README.md` e `CONTEXT_FOR_CLAUDE.md` atualizados.
 
-## 4. O que já foi verificado (sem rede; registries bloqueados no ambiente da revisão)
+## 4. O que já foi verificado localmente
 
 | Verificação | Resultado | Como rodar |
 |---|---|---|
@@ -58,15 +57,17 @@ Dois bugs reais achados na revisão: o `template.yaml` antigo era YAML inválido
 `{param}` dentro de `{ }`), e o bundle CJS do executor seria lido como ESM por causa do
 `"type": "module"` (agora sai como `lambda.cjs`).
 
-## 5. Riscos para conferir no primeiro build (PS-17)
+## 5. Resultado do primeiro build (PS-17)
 
-- Import de `ProgramData` pelo prelude do Anchor 1.2.
-- Surfpool implantando o programa como upgradeable com a carteira do provider como
-  autoridade (`[test] upgradeable = true`). Se falhar: `anchor test --validator legacy`
-  (os testes de relógio são pulados).
-- Semântica de `#[account(mut, dup)]` no `treasury_token_account`.
-- SAM aceitar `RouteSettings` e `LoggingConfig` como escritos; `sam build` exige Python 3.12
-  local (ou `--use-container`).
+- `anchor build` passou; o sync do IDL real não produziu diferença no git.
+- `anchor test` passou com **34/34 testes**, incluindo os cenários de relógio e PS-37.
+- `sam validate --lint` e `sam build` passaram nos templates do backend e do executor. No
+  executor, o PowerShell precisou incluir `agent/node_modules/.bin` no `PATH` para o SAM achar o
+  `esbuild` local.
+- Backend 72/72, agente 14/14, preflight, frontend build/typecheck e bundle Lambda passaram.
+- Pendências abertas: Next.js crítico no audit (PS-44), cadeia Solana/Anchor vulnerável nos três
+  workspaces (PS-45), Program ID divergente da keypair de deploy (PS-46) e 18 avisos não fatais
+  de `unexpected cfg` emitidos pelos macros Anchor/Solana.
 
 ## 6. Próximas tarefas (ordem, dono, critério de aceite)
 
@@ -75,17 +76,17 @@ Dois bugs reais achados na revisão: o `template.yaml` antigo era YAML inválido
 | # | Dono | Tarefa | Aceite |
 |---|---|---|---|
 | A0 | Antigravity | Atualizar `docs/program-design.md` (layout novo: arbiter 236 … job_id 318; `resolve_dispute_timeout`; P-7 e P-11 resolvidos; taxa congelada), `docs/architecture.md` (SSM, SNS, SQS, Nonces, executor em stack própria; `executor.ts` → `core.ts`) e `docs/threat-model.md` (T4–T11 apontando para as correções) | docs batem com o código |
-| A1 | Codex | `cd contracts && anchor build && anchor test` | build limpo; testes passam; resultado registrado no PS-17 |
-| A2 | Kiro | `npm run test:backend`, `sam validate --lint`, `sam build` | sem erro de lint; build OK |
-| A3 | Claude Code | `npm install && npm run build` (frontend); `npm install && npm test && npm run typecheck` (agent) | builds e testes OK |
-| A4 | Antigravity | Revisão independente de A1–A3; novos achados no formato do `security-review.md` | PS-17 → Corrigido ou achados abertos |
+| A1 | Codex | `cd contracts && anchor build && anchor test` | **Concluído:** build OK; 34/34 testes; PS-17 registrado |
+| A2 | Kiro | `npm run test:backend`, `sam validate --lint`, `sam build` | **Concluído:** 72/72; lint e build OK |
+| A3 | Claude Code | `npm install && npm run build` (frontend); `npm install && npm test && npm run typecheck` (agent) | **Concluído:** builds, tipos e 14/14 testes OK |
+| A4 | Antigravity | Revisão independente de A1–A3; novos achados no formato do `security-review.md` | **Concluído:** PS-17 fechado; PS-44/45/46 abertos |
 
 **Fase B — deploy em dev**
 
 | # | Dono | Tarefa | Aprovação |
 |---|---|---|---|
 | B1 | Dono do projeto | Escolher a conta AWS (ideal: separada, IAM Identity Center + MFA, nunca root) e a região; `aws configure sso`; carteira dev com SOL de devnet | — |
-| B2 | Codex | `anchor keys sync`, `anchor build` (sincroniza o IDL), `anchor deploy --provider.cluster devnet`; inicializar a `Config` com a carteira do deploy | permitido em devnet |
+| B2 | Codex | `anchor keys sync`, `anchor build`, `anchor deploy --provider.cluster devnet` e inicialização da `Config` concluídos para `HCYkSp64qdMRjiCbauEzPhx9VtNGB6fp5NvKdCRb8tjj` | concluído em devnet com aprovação humana |
 | B3 | Kiro | Criar os segredos no SSM (runbook §2) → `sam deploy --no-execute-changeset` → revisar o changeset | **executar o changeset exige aprovação humana** |
 | B4 | Claude Code | `.env.local` do frontend (`NEXT_PUBLIC_PROGRAM_ID`, `NEXT_PUBLIC_API_URL`) e smoke test do runbook §2.6 | — |
 | B5 | Claude Code + Kiro | Executor: CLI primeiro; depois a stack `agent/template.yaml` | changeset com IAM exige aprovação |
@@ -107,8 +108,10 @@ Dois bugs reais achados na revisão: o `template.yaml` antigo era YAML inválido
 - **API HTTP:** `backend-serverless/template.yaml` ↔ `frontend/src/lib/api.ts` ↔ `agent/core.ts`.
 - **Segredos:** nomes `/proofsec/<stage>/{jwt-secret, agent-api-key, anthropic-api-key, agent-keypair}`
   usados pelos dois templates e pelo código.
-- **ID do programa:** `PrfSec111…` é provisório; depois do deploy, trocar em `declare_id!`,
-  `Anchor.toml`, IDL (via build), `.env` do frontend e parâmetro `ProgramId` das stacks.
+- **ID do programa devnet:** `HCYkSp64qdMRjiCbauEzPhx9VtNGB6fp5NvKdCRb8tjj`, sincronizado em
+  `declare_id!`, `Anchor.toml`, IDLs gerados e defaults das stacks. A `Config` on-chain
+  `2qX6gWqAiTjLcQCg53UiCpfTnnNgs89GkwbSWfVNRyXQ` está inicializada com a carteira dev como
+  admin/árbitro/tesouraria, 250 bps, USDC devnet e prazo de disputa de 24 h.
 
 ## 8. Lembretes de governança
 
@@ -132,11 +135,11 @@ testes rodados, riscos abertos, docs atualizados.
   EventBridge, severidade e chave curta do executor.
 - **Validação executada:** `npm run preflight:local` — backend 72/72; agente 14/14 e
   typecheck; checker offline dos dois templates; bundle Node 22 carregando `handler`; typecheck
-  e build estático do frontend; IDL provisório conferido contra o Rust. Auditoria npm offline
-  de frontend e agente não encontrou vulnerabilidades (resultado limitado ao cache local).
-- **Riscos abertos:** PS-17 continua aberto (`sam validate --lint`, `sam build`, demais builds
-  Anchor e cold start real do executor); CloudFront+WAF continua sendo o controle futuro para limite por IP.
-  Não houve deploy, execução de changeset nem contato com uma conta AWS.
+  e build estático do frontend; IDL conferido contra o Rust. O audit online posterior invalidou
+  o resultado offline limitado ao cache e abriu PS-44/45.
+- **Riscos abertos:** PS-44 (Next.js crítico), PS-45 (cadeias Solana/Anchor) e cold start real
+  do executor; CloudFront+WAF continua sendo o controle futuro para limite por IP. O programa
+  foi implantado na devnet; não houve execução de changeset AWS.
 - **Docs atualizados:** `README.md`, `ANALISE_TECNICA_PROOFSEC.md`, `docs/runbook.md`,
   `docs/security-review.md`, `docs/resilience.md` e `backend-serverless/AGENTS.md`.
 - **Revisão:** PS-25–PS-31 e as alterações desta rodada aguardam revisão independente, pois o
@@ -148,11 +151,14 @@ testes rodados, riscos abertos, docs atualizados.
   dependem de AWS, Solana CLI ou credenciais; executado com sucesso.
 - **Fail-closed do executor:** `ScheduleState` agora começa `DISABLED` no template e no
   `samconfig.toml`; habilitação só depois dos segredos, delegate, policy e rodada manual.
-- **Ferramentas ausentes neste host:** AWS CLI, SAM CLI, Docker, Rust/Cargo, Solana CLI e
-  Anchor. Por isso `sam validate/build` e `anchor build/test` continuam pendentes.
-- **Contratos:** `contracts/` ainda não tem `package-lock.json`; a tentativa offline de gerar
-  um lock falhou porque o cache npm não contém `@anchor-lang/core`. Resolver junto da instalação
-  do toolchain, com acesso ao registry, antes de `anchor test`.
+- **Ferramentas instaladas:** AWS CLI 2.37.9, SAM CLI 1.166.2 e Docker Desktop 4.94.0 no
+  Windows; WSL 3.0.1 + Ubuntu 26.04.1 com Rust 1.99, Agave 3.1.10, Anchor 1.2.0, Surfpool
+  1.6.0 e Node 22.22.1. O Docker ainda exige a primeira abertura e aceitação interativa dos
+  termos; nenhuma licença foi aceita automaticamente.
+- **Validações nativas:** `sam validate --lint`/`sam build` nos dois templates e
+  `anchor build`/`anchor test` passaram; contrato 34/34. O `package-lock.json` de contratos já
+  existia e permaneceu sem alteração. O audit online abriu PS-44/45; PS-46 foi corrigido e o
+  programa foi publicado na devnet e a `Config` foi inicializada após aprovação humana.
 - **Conta amanhã:** usar IAM Identity Center + MFA, confirmar `aws sts get-caller-identity`,
   escolher região, criar SecureStrings, gerar changeset sem executar e pedir aprovação antes
   de qualquer execução.

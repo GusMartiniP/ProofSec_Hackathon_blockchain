@@ -130,3 +130,15 @@ cd backend-serverless && sam validate --lint && sam build
 `docs/security-review.md` (findings + backlog per agent) · `docs/resilience.md` ·
 `docs/runbook.md` · `docs/decisions.md` · `docs/ProofSec_Manual_Tecnico.pdf` ·
 current status and next tasks: `CONTEXT_FOR_ANTIGRAVITY.md`
+
+<!-- BEGIN AWS Agent Toolkit rules -->
+## AWS new experience
+
+Use **project**, **team member**, **AWS Settings**, and **selected Region**. Create regional
+resources only there; inventory it plus `us-east-1` for WAF/CloudWatch Logs. No Lambda@Edge,
+StackSets, cross-Region actions/replication, multi-Region KMS, or cross-Region Route 53.
+Avoid human IAM roles. Sudden `AccessDenied`: check spend limit and plan in AWS Settings >
+Billing. For unavailable services, run `aws freetier get-account-plan-state` then its
+Free/Paid/unsupported list. Load a relevant AWS skill before AWS work. While building, ask for
+Low/Medium/High guidance. Project rules prevail.
+<!-- END AWS Agent Toolkit rules -->
