@@ -4,12 +4,26 @@ import React, { useMemo, useState } from 'react';
 import dynamic from 'next/dynamic';
 import { Coins, KeyRound, LogIn, RefreshCw, Shield } from 'lucide-react';
 import { useProofSec } from '@/hooks/useProofSec';
+import { useRole } from '@/hooks/useRole';
 import { HAS_API } from '@/lib/config';
+import {
+  ROLE_LABEL,
+  VIEW_LABEL,
+  canConfigureAgent,
+  canCreateEscrow,
+  defaultView,
+  isArbiterAnywhere,
+  jobsForRoleView,
+  viewsFor,
+  type Role,
+  type RoleView,
+} from '@/lib/role';
 import { AdminSetup } from '@/components/AdminSetup';
 import { AgentPanel } from '@/components/AgentPanel';
 import { CreateJobPanel } from '@/components/CreateJobPanel';
 import { JobCard } from '@/components/JobCard';
 import { NoticeBar } from '@/components/NoticeBar';
+import { RolePicker } from '@/components/RolePicker';
 import { Button } from '@/components/ui';
 
 const WalletMultiButton = dynamic(
@@ -17,17 +31,20 @@ const WalletMultiButton = dynamic(
   { ssr: false }
 );
 
-type Tab = 'all' | 'client' | 'researcher';
-
 export default function Home() {
   const { wallet, config, configLoaded, jobs, loading, refresh, loggedIn, login, ensureEncryptionKey, run } = useProofSec();
-  const [tab, setTab] = useState<Tab>('all');
+  const { role, setRole } = useRole(wallet);
+  const [pickedView, setPickedView] = useState<RoleView | null>(null);
 
-  const visible = useMemo(() => {
-    if (tab === 'client') return jobs.filter((j) => j.client === wallet);
-    if (tab === 'researcher') return jobs.filter((j) => j.researcher === wallet);
-    return jobs;
-  }, [jobs, tab, wallet]);
+  // Sem carteira ou sem papel escolhido: lista pública completa, só leitura.
+  const arbiter = isArbiterAnywhere(jobs, wallet);
+  const views = role ? viewsFor(role, arbiter) : [];
+  const view: RoleView | null = role ? (pickedView && views.includes(pickedView) ? pickedView : defaultView(role)) : null;
+
+  const visible = useMemo(
+    () => (role && view ? jobsForRoleView(jobs, role, view, wallet) : jobs),
+    [jobs, role, view, wallet]
+  );
 
   const locked = jobs
     .filter((j) => ['OPEN', 'IN_PROGRESS', 'EVIDENCE_SUBMITTED', 'DISPUTED'].includes(j.status))
@@ -56,7 +73,25 @@ export default function Home() {
           </div>
         </div>
 
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2 flex-wrap justify-center">
+          {wallet && role && (
+            <div className="bg-slate-900 p-1 rounded-xl border border-slate-800 flex text-xs font-semibold" role="group" aria-label="Papel">
+              {(['company', 'researcher'] as Role[]).map((r) => (
+                <button
+                  key={r}
+                  onClick={() => {
+                    setRole(r);
+                    setPickedView(null);
+                  }}
+                  className={`px-3 py-1.5 rounded-lg transition-all ${
+                    role === r ? 'bg-solana-purple text-white shadow-md' : 'text-slate-400 hover:text-white'
+                  }`}
+                >
+                  {ROLE_LABEL[r]}
+                </button>
+              ))}
+            </div>
+          )}
           {HAS_API && wallet && !loggedIn && (
             <Button variant="ghost" onClick={login}>
               <LogIn className="w-3.5 h-3.5" /> Entrar (SIWS)
@@ -95,6 +130,8 @@ export default function Home() {
         </div>
       </section>
 
+      {wallet && !role && <RolePicker onPick={setRole} />}
+
       {configLoaded && !config && (
         <div className="mb-6">
           <AdminSetup />
@@ -105,22 +142,21 @@ export default function Home() {
         <div className="lg:col-span-2 space-y-4">
           <div className="flex items-center justify-between gap-2 flex-wrap">
             <div className="bg-slate-900 p-1 rounded-xl border border-slate-800 flex text-xs font-semibold">
-              {([
-                ['all', 'Todos'],
-                ['client', 'Sou cliente'],
-                ['researcher', 'Sou pesquisador'],
-              ] as [Tab, string][]).map(([key, label]) => (
-                <button
-                  key={key}
-                  onClick={() => setTab(key)}
-                  disabled={key !== 'all' && !wallet}
-                  className={`px-3 py-1.5 rounded-lg transition-all disabled:opacity-40 ${
-                    tab === key ? 'bg-solana-purple text-white shadow-md' : 'text-slate-400 hover:text-white'
-                  }`}
-                >
-                  {label}
-                </button>
-              ))}
+              {role && view ? (
+                views.map((v) => (
+                  <button
+                    key={v}
+                    onClick={() => setPickedView(v)}
+                    className={`px-3 py-1.5 rounded-lg transition-all ${
+                      view === v ? 'bg-solana-purple text-white shadow-md' : 'text-slate-400 hover:text-white'
+                    }`}
+                  >
+                    {VIEW_LABEL[v][role]}
+                  </button>
+                ))
+              ) : (
+                <span className="px-3 py-1.5 text-slate-400">Todos os escrows</span>
+              )}
             </div>
             <button onClick={refresh} className="text-xs text-slate-400 hover:text-white inline-flex items-center gap-1.5">
               <RefreshCw className={`w-3.5 h-3.5 ${loading ? 'animate-spin' : ''}`} /> Atualizar
@@ -138,12 +174,24 @@ export default function Home() {
         </div>
 
         <aside className="space-y-4">
-          {wallet ? (
+          {wallet && role ? (
             <>
-              <CreateJobPanel />
-              <AgentPanel />
+              {canCreateEscrow(role) && <CreateJobPanel />}
+              {canConfigureAgent(role) && <AgentPanel />}
+              {role === 'researcher' && (
+                <div className="bg-slate-900 border border-slate-800 rounded-xl p-5 text-sm text-slate-400 space-y-2">
+                  <div className="font-semibold text-white">Para entregar relatórios</div>
+                  <p>
+                    1. Entre (SIWS) e use <span className="text-slate-200">Ativar criptografia</span> uma vez.
+                    <br />
+                    2. Candidate-se a uma vaga aberta e aguarde a atribuição do cliente.
+                    <br />
+                    3. Aceite o job, envie o relatório cifrado e acompanhe a janela de revisão.
+                  </p>
+                </div>
+              )}
             </>
-          ) : (
+          ) : wallet ? null : (
             <div className="bg-slate-900 border border-slate-800 rounded-xl p-5 text-sm text-slate-400">
               Conecte sua carteira (Phantom, Solflare, Backpack…) na devnet para criar escrows, aceitar jobs ou configurar o
               agente.

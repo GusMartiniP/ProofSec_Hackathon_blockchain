@@ -321,7 +321,7 @@ resolver tudo). Qualquer uma pode ser revista por novo ADR.
   referências ao Kiro no runbook depois da aprovação; trocar o perfil do MCP da AWS do root
   para o usuário do agente. Criar os usuários exige aprovação (IAM, §5).
 
-## ADR-025 — Experiência separada por papel: Empresa e Pesquisador (só UI, sem papel autoritativo) · Proposta
+## ADR-025 — Experiência separada por papel: Empresa e Pesquisador (só UI, sem papel autoritativo) · Aceita
 
 - **Contexto:** hoje há uma tela única. As abas "Sou cliente" e "Sou pesquisador" apenas filtram a
   lista, e o painel lateral (`CreateJobPanel`, `AgentPanel`) aparece para qualquer carteira, inclusive
@@ -352,3 +352,7 @@ resolver tudo). Qualquer uma pode ser revista por novo ADR.
   se houver necessidade de reputação ou de ver o papel em outro dispositivo.
 - **Verificação:** teste de componente por papel (o pesquisador não renderiza criar escrow nem
   agente); `tsc --noEmit` e `npm run build`; roteiro manual com duas carteiras.
+- **Implementação (aprovada pelo dono no chat):** `frontend/src/lib/role.ts` (lógica pura),
+  `hooks/useRole.ts`, `components/RolePicker.tsx` e `app/page.tsx`. Teste `tests/role.test.ts`
+  (9 casos, dentro de `npm run test:meta`). Fora do ADR: `AdminSetup` continua aparecendo só enquanto a
+  `Config` não existe (na devnet ela já existe), então não precisou de filtro por papel.
