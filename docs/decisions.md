@@ -421,3 +421,14 @@ resolver tudo). Qualquer uma pode ser revista por novo ADR.
 - **Verificação:** `PS-52 regression` (config: árbitro igual ao cliente e ao pesquisador, na criação e na atribuição;
   agente) em `contracts/tests/proofsec.ts`; `anchor test` 36/36. Os helpers do spl-token ganharam repetição em
   "Blockhash not found" (o Surfpool avança a altura de bloco por transação e só renova o blockhash com o relógio).
+- **Execução (2026-10-13):** upgrade na devnet pela upgrade authority (carteira de deploy), mesmo Program ID
+  `HCYkSp64qdMRjiCbauEzPhx9VtNGB6fp5NvKdCRb8tjj`, ProgramData estendido em 10 240 + 20 480 bytes (500 312 bytes no
+  total), slot 510483884, assinatura
+  `5cErnJbnZD8z3GQxkraQNvmASU13fsokTm3wAfybtWsG7kPNnqAS2Kxgh6DLtgFTjXtpN5zdgAVNZ3up52UXSRyN`. SHA-256 do binário
+  on-chain (primeiros 496 264 bytes) igual ao do build `--arch v0`:
+  `0bcc9078816c422a9baaf42e786c68e1482a4d92a53a4f58010ec129969c4a20`. Binário anterior (SBPF v3, sha256
+  `13cebac1…80bd`) guardado em `~/proofsec_HCYk_before_ps52.so` no WSL para rollback.
+  Verificação no programa implantado, por simulação: árbitro como cliente (sem e com pesquisador) e árbitro como
+  pesquisador recusados com `ArbiterConflict` (6031); empresa + pesquisador e empresa sem pesquisador passam; o job
+  existente segue legível. Foi enviada uma transação idempotente para criar a ATA de USDC da carteira de deploy
+  (que também é a tesouraria).
