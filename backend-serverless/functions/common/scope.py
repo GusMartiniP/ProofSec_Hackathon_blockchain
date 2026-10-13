@@ -12,10 +12,10 @@ import string
 _ID_ALPHABET = string.ascii_lowercase + string.digits
 
 DEFAULT_RULES = [
-    "Testar somente os ativos listados no escopo.",
-    "Proibido DoS/DDoS, engenharia social e acesso a dados reais de clientes além do mínimo para PoC.",
-    "Reportar vulnerabilidades críticas imediatamente ao cliente pelo canal combinado.",
-    "Não divulgar achados publicamente sem autorização por escrito do cliente.",
+    "Test only the assets listed in the scope.",
+    "DoS/DDoS, social engineering and access to real customer data beyond the minimum needed for a PoC are prohibited.",
+    "Report critical vulnerabilities to the client immediately through the agreed channel.",
+    "Do not disclose findings publicly without the client's written authorization.",
 ]
 
 

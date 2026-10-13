@@ -91,7 +91,7 @@ def _pk(b: bytes) -> str:
 
 def decode_job(data: bytes) -> dict:
     if len(data) < JOB_FIXED_SIZE or data[:8] != JOB_DISCRIMINATOR:
-        raise ValueError("conta não é um JobAccount")
+        raise ValueError("account is not a JobAccount")
     client, researcher, mint, vault = (_pk(data[8 + i * 32 : 8 + (i + 1) * 32]) for i in range(4))
     amount, deadline, review_period, review_deadline = struct.unpack_from("<Qqqq", data, 136)
     scope_hash = data[168:200].hex()
@@ -104,7 +104,7 @@ def decode_job(data: bytes) -> dict:
     treasury = _pk(data[318:350])  # congelada no job (PS-37)
     (id_len,) = struct.unpack_from("<I", data, 350)
     if id_len > 32 or len(data) < JOB_FIXED_SIZE + id_len:
-        raise ValueError("job_id inválido")
+        raise ValueError("invalid job_id")
     job_id = data[JOB_FIXED_SIZE : JOB_FIXED_SIZE + id_len].decode("utf-8")
     return {
         "client": client,
@@ -133,7 +133,7 @@ def decode_job(data: bytes) -> dict:
 
 def decode_config(data: bytes) -> dict:
     if len(data) < 147 or data[:8] != CONFIG_DISCRIMINATOR:
-        raise ValueError("conta não é a Config")
+        raise ValueError("account is not the Config")
     (fee_bps,) = struct.unpack_from("<H", data, 104)
     (dispute_period,) = struct.unpack_from("<q", data, 138)
     return {
@@ -148,7 +148,7 @@ def decode_config(data: bytes) -> dict:
 
 def decode_policy(data: bytes) -> dict:
     if len(data) < 113 or data[:8] != POLICY_DISCRIMINATOR:
-        raise ValueError("conta não é uma AgentPolicy")
+        raise ValueError("account is not an AgentPolicy")
     owner, agent = _pk(data[8:40]), _pk(data[40:72])
     max_job, max_period, period_s, period_start, spent = struct.unpack_from("<QQqqQ", data, 72)
     return {
@@ -170,7 +170,7 @@ def fetch_job(job_pda: str) -> dict | None:
     if not value:
         return None
     if value["owner"] != PROGRAM_ID:
-        raise ValueError("conta não pertence ao programa ProofSec")
+        raise ValueError("account does not belong to the ProofSec program")
     job = decode_job(base64.b64decode(value["data"][0]))
     job["jobPda"] = job_pda
     return job
@@ -214,7 +214,7 @@ def fetch_config() -> dict | None:
 def hex32(value: str) -> bytes:
     b = bytes.fromhex(value)
     if len(b) != 32:
-        raise ValueError("hash precisa ter 32 bytes")
+        raise ValueError("hash must be 32 bytes")
     return b
 
 

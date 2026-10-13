@@ -34,8 +34,8 @@ def _watch_config() -> None:
     fingerprint = hashlib.sha256(json.dumps(cfg, sort_keys=True).encode()).hexdigest()
     previous = db.get_meta("config")
     if previous and previous.get("fingerprint") != fingerprint:
-        alerts.alert("Configuração on-chain alterada", severity="CRITICAL", config=cfg,
-                     action="Confirme que a mudança foi aprovada (AGENTS.md §5).")
+        alerts.alert("On-chain config changed", severity="CRITICAL", config=cfg,
+                     action="Confirm that the change was approved (AGENTS.md §5).")
     if not previous or previous.get("fingerprint") != fingerprint:
         db.put_meta("config", {"fingerprint": fingerprint, "config": json.dumps(cfg, sort_keys=True)})
 

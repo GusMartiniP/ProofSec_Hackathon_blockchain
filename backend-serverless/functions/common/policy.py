@@ -52,9 +52,9 @@ def decide(budget_usdc: float, limit: float | None = None) -> dict:
         "status": "AUTO_APPROVED" if autonomous else "NEEDS_HUMAN",
         "limitUsdc": limit,
         "reason": (
-            f"Budget {budget_usdc:.2f} USDC dentro do teto autônomo ({limit:.2f} USDC). "
-            "A execução ainda passa pelo limite on-chain da AgentPolicy."
+            f"Budget {budget_usdc:.2f} USDC is within the autonomous ceiling ({limit:.2f} USDC). "
+            "Execution still goes through the on-chain AgentPolicy limit."
             if autonomous
-            else f"Budget {budget_usdc:.2f} USDC excede o teto autônomo ({limit:.2f} USDC): requer assinatura humana."
+            else f"Budget {budget_usdc:.2f} USDC exceeds the autonomous ceiling ({limit:.2f} USDC): requires a human signature."
         ),
     }

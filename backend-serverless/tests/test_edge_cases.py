@@ -451,7 +451,7 @@ class TestReview25to31Regressions(Base):
         self.assertEqual(statuses.count("AUTO_APPROVED"), 9)
         self.assertEqual(statuses.count("NEEDS_HUMAN"), 7)
         self.assertEqual(out["demoted"], 6)
-        self.assertTrue(any("acima do limite" in m["Subject"] for m in SNS.messages))
+        self.assertTrue(any("above the per-event limit" in m["Subject"] for m in SNS.messages))
 
     def test_retry_does_not_call_llm_again_for_existing_findings(self):
         import agent

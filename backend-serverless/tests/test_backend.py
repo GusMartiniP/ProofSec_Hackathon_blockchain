@@ -566,7 +566,7 @@ class TestEvidence(Base):
         S3.objects[key] = b"outro conteudo"
         evidence.verify_upload({"Records": [{"s3": {"bucket": {"name": "b"}, "object": {"key": key, "size": 14, "versionId": "v1"}}}]}, None)
         self.assertEqual(S3.deleted[-1], {"Bucket": "b", "Key": key, "VersionId": "v1"})
-        self.assertTrue(any("hash divergente" in m["Subject"] for m in SNS.messages))
+        self.assertTrue(any("mismatched hash" in m["Subject"] for m in SNS.messages))
 
         S3.objects[key] = good
         before = len(S3.deleted)
@@ -639,7 +639,7 @@ class TestAgentAndAlerts(Base):
         item = get_item(prop["jobId"])
         self.assertEqual(item["status"], "NEEDS_HUMAN")
         self.assertIn("ExceedsPeriodLimit", item["agentDecision"])
-        self.assertTrue(any("recusada" in m["Subject"] for m in SNS.messages))
+        self.assertTrue(any("rejected" in m["Subject"] for m in SNS.messages))
         # Só rebaixa AUTO_APPROVED → NEEDS_HUMAN; não mexe em outro estado nem sai da fila humana
         self.assertEqual(agent.mark_rejected(ev, None)["statusCode"], 409)
         listed = agent.list_proposals({"headers": key, "queryStringParameters": None}, None)
@@ -657,11 +657,11 @@ class TestAgentAndAlerts(Base):
         proposal = body_of(agent.propose(authed(client, {"severity": 5}), None))["job"]
         cb = b58.b58decode(client)
         sync.apply_onchain(onchain_for(proposal, cb, status=0, by_agent=True), get_item(proposal["jobId"]))
-        self.assertTrue(any("agente" in m["Subject"] for m in SNS.messages))
+        self.assertTrue(any("agent" in m["Subject"] for m in SNS.messages))
         SNS.messages.clear()
         sync.apply_onchain(onchain_for(proposal, cb, status=2, by_agent=True, evidence=b"\x01" * 32),
                            get_item(proposal["jobId"]))
-        self.assertTrue(any("Evidência" in m["Subject"] for m in SNS.messages))
+        self.assertTrue(any("Evidence" in m["Subject"] for m in SNS.messages))
 
     def test_indexer_alerts_on_config_change(self):
         cfg = {"admin": "A", "arbiter": "B", "treasury": "C", "feeBps": 250, "allowedMint": "M", "disputePeriod": 120}
@@ -672,7 +672,7 @@ class TestAgentAndAlerts(Base):
         with mock.patch.object(indexer, "fetch_all_jobs", return_value=[]), \
                 mock.patch.object(indexer, "fetch_config", return_value={**cfg, "feeBps": 1000}):
             indexer.handler({}, None)
-        self.assertTrue(any("Configuração" in m["Subject"] for m in SNS.messages))
+        self.assertTrue(any("config changed" in m["Subject"] for m in SNS.messages))
 
 
 if __name__ == "__main__":

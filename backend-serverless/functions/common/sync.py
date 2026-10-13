@@ -14,26 +14,26 @@ def _notify_transitions(onchain: dict, previous_status: str | None) -> None:
         return
     if onchain["createdByAgent"] and previous_status is None:
         alerts.alert(
-            "Escrow aberto pelo agente de IA",
+            "Escrow opened by the AI agent",
             jobId=job_id,
             client=onchain["client"],
             amountBase=onchain["amount"],
-            action="Revise o escopo e atribua um pesquisador. Contestação possível após a entrega.",
+            action="Review the scope and assign a researcher. A dispute is possible after delivery.",
         )
     if status == "EVIDENCE_SUBMITTED" and onchain["createdByAgent"]:
         alerts.alert(
-            "Evidência recebida em job do agente",
+            "Evidence received on an agent job",
             jobId=job_id,
             reviewDeadline=onchain["reviewDeadline"],
-            action="Verifique o relatório antes do fim da janela; sem resposta o pagamento é liberado.",
+            action="Check the report before the window ends; with no response the payment is released.",
         )
     if status == "DISPUTED":
         alerts.alert(
-            "Disputa aberta",
+            "Dispute opened",
             jobId=job_id,
             arbiter=onchain["arbiter"],
             disputeDeadline=onchain["disputeDeadline"],
-            action="O árbitro precisa decidir antes do prazo; depois vale a divisão 50/50.",
+            action="The arbiter must decide before the deadline; after that the 50/50 split applies.",
         )
 
 
@@ -102,5 +102,5 @@ def sync_job(job_id: str, job_pda: str | None = None) -> dict | None:
     if onchain is None:
         return item
     if onchain["jobId"] != job_id:
-        raise ValueError("job_id on-chain não corresponde")
+        raise ValueError("on-chain job_id does not match")
     return apply_onchain(onchain, item)

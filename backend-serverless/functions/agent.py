@@ -76,7 +76,7 @@ def normalize_findings(raw: dict) -> list[dict]:
     return [{
             "source": raw.get("source", "manual"),
             "findingId": str(detail.get("id") or raw.get("id") or ""),
-            "type": detail.get("type") or detail.get("title") or "Anomalia de segurança",
+            "type": detail.get("type") or detail.get("title") or "Security anomaly",
             "description": detail.get("description", ""),
             "severity": detail.get("severity", "MEDIUM"),
             "resource": resource or detail.get("target_asset") or "",
@@ -87,7 +87,7 @@ def normalize_finding(raw: dict) -> dict:
     """Compatibilidade para payloads de um único finding."""
     findings = normalize_findings(raw)
     return findings[0] if findings else {
-        "source": "manual", "findingId": "", "type": "Anomalia de segurança",
+        "source": "manual", "findingId": "", "type": "Security anomaly",
         "description": "", "severity": "MEDIUM", "resource": "",
     }
 
@@ -101,19 +101,19 @@ def ineligibility_reason(finding: dict, account_id: str | None = None) -> str | 
     if finding.get("source") == "securityhub":
         label = str(finding.get("severity") or "").upper()
         if label not in SECURITY_HUB_ELIGIBLE_LABELS:
-            return f"severidade {label or 'ausente'} abaixo de MEDIUM"
+            return f"severity {label or 'missing'} below MEDIUM"
         if finding.get("recordState") not in (None, "ACTIVE"):
             return f"RecordState {finding['recordState']}"
         if finding.get("workflowStatus") not in (None, *SECURITY_HUB_ELIGIBLE_WORKFLOW):
             return f"Workflow {finding['workflowStatus']}"
         if account_id and finding.get("accountId") not in (None, account_id):
-            return "finding de outra conta"
+            return "finding from another account"
     elif finding.get("source") == "aws.guardduty":
         try:
             if float(finding.get("severity")) < GUARDDUTY_MIN_SEVERITY:
-                return "severidade GuardDuty abaixo de 4"
+                return "GuardDuty severity below 4"
         except (TypeError, ValueError):
-            return "severidade GuardDuty inválida"
+            return "invalid GuardDuty severity"
     return None
 
 
@@ -177,10 +177,10 @@ def _require_agent_key(event):
 def on_event(event, context):
     """Alvo da regra do EventBridge (GuardDuty/Security Hub)."""
     if not is_pubkey(COMPANY_WALLET):
-        log.warning("agent_event_ignored", reason="COMPANY_WALLET não configurada")
+        log.warning("agent_event_ignored", reason="COMPANY_WALLET not configured")
         return {"ok": False}
     if event.get("source") == DEMO_SOURCE and STAGE != "dev":
-        log.warning("agent_event_ignored", reason="demo source fora do stage dev", stage=STAGE)
+        log.warning("agent_event_ignored", reason="demo source outside the dev stage", stage=STAGE)
         return {"ok": False}
     arn = getattr(context, "invoked_function_arn", "") or ""
     account_id = arn.split(":")[4] if arn.count(":") >= 4 else None
@@ -209,8 +209,8 @@ def on_event(event, context):
         use_llm = remaining is None or remaining() >= LLM_MIN_REMAINING_MS
         proposal = build_proposal(
             finding, COMPANY_WALLET, job_id=job_id, use_llm=use_llm,
-            force_human=(f"Lote com mais de {MAX_PROPOSALS_PER_EVENT} findings elegíveis: "
-                         "requer revisão humana.") if over_limit else None,
+            force_human=(f"Batch with more than {MAX_PROPOSALS_PER_EVENT} eligible findings: "
+                         "requires human review.") if over_limit else None,
         )
         item = db.put_job_once(proposal)
         if item is None:
@@ -222,9 +222,9 @@ def on_event(event, context):
         log.info("agent_proposal", jobId=item["jobId"], status=item["status"], source=event.get("source"))
     if demoted:
         alerts.alert(
-            "Lote de findings acima do limite por evento",
+            "Findings batch above the per-event limit",
             client=COMPANY_WALLET, eligible=len(eligible), limit=MAX_PROPOSALS_PER_EVENT, demoted=demoted,
-            action="As propostas excedentes ficaram em NEEDS_HUMAN; revise no painel.",
+            action="The excess proposals were left in NEEDS_HUMAN; review them in the dashboard.",
         )
     return {"ok": True, "created": created, "duplicates": duplicates, "skipped": skipped, "demoted": demoted}
 
@@ -246,7 +246,7 @@ def propose(event, context):
             "source": "demo",
             "detail": {
                 "type": str(body.get("type", "UnauthorizedAccess:EC2/ExposedEndpoint"))[:200],
-                "description": str(body.get("description", "Endpoint exposto sem autenticação detectado"))[:1000],
+                "description": str(body.get("description", "Exposed endpoint without authentication detected"))[:1000],
                 "severity": body.get("severity", 5.0),
                 "target_asset": str(body.get("target_asset", "api.company.internal/v1"))[:200],
             },
@@ -256,7 +256,7 @@ def propose(event, context):
     # financiamento manual, senão qualquer carteira com política apontando para o agente gastaria o SOL dele
     force = None
     if STAGE != "dev" and wallet != COMPANY_WALLET:
-        force = "Carteira diferente da CompanyWallet: financiamento manual (execução autônoma restrita)."
+        force = "Wallet differs from CompanyWallet: manual funding (autonomous execution restricted)."
     item = db.put_job(build_proposal(finding, wallet, force_human=force), only_if_new=True)
     return ok({"success": True, "job": item}, 201)
 
@@ -295,18 +295,18 @@ def mark_rejected(event, context):
     """
     _require_agent_key(event)
     job_id = path_param(event, "jobId")
-    reason = str(parse_body(event).get("reason") or "recusada pelo executor")[:300]
+    reason = str(parse_body(event).get("reason") or "rejected by the executor")[:300]
     item = db.get_job(job_id)
     if not item:
         raise HttpError(404, "proposal not found")
     if item.get("status") != "AUTO_APPROVED":
         raise HttpError(409, "the proposal is not waiting for the executor")
-    item = db.put_job({**item, "status": "NEEDS_HUMAN", "agentDecision": f"Executor recusou: {reason}"})
+    item = db.put_job({**item, "status": "NEEDS_HUMAN", "agentDecision": f"Executor rejected: {reason}"})
     alerts.alert(
-        "Proposta do agente recusada pelo executor",
+        "Agent proposal rejected by the executor",
         jobId=job_id,
         client=item.get("clientWallet"),
         reason=reason,
-        action="Revise a proposta; se fizer sentido, abra o escrow manualmente no painel.",
+        action="Review the proposal; if it makes sense, open the escrow manually in the dashboard.",
     )
     return ok({"success": True, "job": item})

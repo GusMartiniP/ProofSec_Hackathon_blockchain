@@ -14,7 +14,7 @@ def _default(o):
         return int(o) if o == o.to_integral_value() else float(o)
     if isinstance(o, (set, frozenset)):
         return list(o)
-    raise TypeError(f"tipo não serializável: {type(o).__name__}")
+    raise TypeError(f"type not serializable: {type(o).__name__}")
 
 
 def dumps(body) -> str:

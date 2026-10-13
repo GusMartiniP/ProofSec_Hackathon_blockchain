@@ -28,25 +28,25 @@ def decode(token: str, secret: str) -> dict:
         header, body, sig = token.split(".")
         header_obj = json.loads(_unb64(header))  # ainda sem assinatura: entrada hostil
         if not isinstance(header_obj, dict) or header_obj.get("alg") != "HS256":
-            raise ValueError("algoritmo não suportado")
+            raise ValueError("unsupported algorithm")
         expected = hmac.new(secret.encode(), f"{header}.{body}".encode(), hashlib.sha256).digest()
         if not hmac.compare_digest(expected, _unb64(sig)):
-            raise ValueError("assinatura inválida")
+            raise ValueError("invalid signature")
         payload = json.loads(_unb64(body))
     except (ValueError, TypeError, AttributeError, RecursionError):
         # JSON profundo demais (RecursionError), base64/UTF-8 inválidos, não-texto etc.
-        raise ValueError("token inválido")
+        raise ValueError("invalid token")
     if not isinstance(payload, dict):
-        raise ValueError("payload inválido")
+        raise ValueError("invalid payload")
     exp = payload.get("exp")
     if isinstance(exp, bool) or not isinstance(exp, (int, float)):
-        raise ValueError("token expirado")
+        raise ValueError("token expired")
     try:
         valid_exp = math.isfinite(exp) and exp >= time.time()
     except OverflowError:  # inteiro gigante
         valid_exp = False
     if not valid_exp:
-        raise ValueError("token expirado")
+        raise ValueError("token expired")
     if not isinstance(payload.get("sub"), str) or not payload["sub"]:
-        raise ValueError("subject inválido")
+        raise ValueError("invalid subject")
     return payload

@@ -152,12 +152,12 @@ def verify_upload(event, context):
         version_id = obj.get("versionId")
         m = _KEY_RE.match(key)
         if not m:
-            alerts.alert("Objeto fora do padrão removido do bucket de relatórios", key=key)
+            alerts.alert("Non-standard object removed from the reports bucket", key=key)
             _remove(bucket, key, version_id)
             continue
         size = obj.get("size", 0)
         if size > MAX_SIZE:
-            alerts.alert("Relatório acima de 50 MB removido", key=key, size=size)
+            alerts.alert("Report above 50 MB removed", key=key, size=size)
             _remove(bucket, key, version_id)
             continue
         h = hashlib.sha256()
@@ -168,7 +168,7 @@ def verify_upload(event, context):
         for chunk in iter(lambda: stream.read(1024 * 1024), b""):
             h.update(chunk)
         if h.hexdigest() != m.group(2):
-            alerts.alert("Upload com hash divergente removido", severity="SECURITY_INCIDENT", key=key)
+            alerts.alert("Upload with mismatched hash removed", severity="SECURITY_INCIDENT", key=key)
             _remove(bucket, key, version_id)
         else:
             log.info("evidence_verified", key=key)

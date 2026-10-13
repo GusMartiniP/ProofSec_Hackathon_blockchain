@@ -18,7 +18,7 @@ def b58decode(s: str) -> bytes:
     n = 0
     for c in s:
         if c not in _INDEX:
-            raise ValueError("caractere base58 inválido")
+            raise ValueError("invalid base58 character")
         n = n * 58 + _INDEX[c]
     body = n.to_bytes((n.bit_length() + 7) // 8, "big") if n else b""
     pad = len(s) - len(s.lstrip("1"))
