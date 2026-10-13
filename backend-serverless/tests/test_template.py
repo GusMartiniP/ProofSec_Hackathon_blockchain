@@ -29,5 +29,13 @@ class AuthorizerPermissionTest(unittest.TestCase):
         self.assertNotIn('SourceArn: "*"', block)
 
 
+class ApiAccessLogDriftTest(unittest.TestCase):
+    def test_destination_arn_has_no_log_stream_wildcard(self):
+        block = _block("ProofSecApi")
+        self.assertIn("AccessLogSettings:", block)
+        self.assertIn("log-group:/proofsec/${Stage}/api-access\"", block)
+        self.assertNotIn("DestinationArn: !GetAtt ApiAccessLogGroup.Arn", block)
+
+
 if __name__ == "__main__":
     unittest.main()

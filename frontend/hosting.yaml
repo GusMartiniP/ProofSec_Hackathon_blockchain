@@ -6,6 +6,10 @@ Description: >
   -> invalidar o CloudFront. Depois, adicionar o dominio da distribuicao em SiwsDomains e
   AllowedOrigin da stack do backend (proofsec-<Stage>).
 
+Metadata:
+  AWSToolsMetrics:
+    AWSAgentToolkit: aws-cloudformation@3
+
 Parameters:
   Stage:
     Type: String
@@ -57,6 +61,8 @@ Conditions:
 Resources:
   SiteBucket:
     Type: AWS::S3::Bucket
+    DeletionPolicy: Retain
+    UpdateReplacePolicy: Retain
     Properties:
       BucketName: !Sub "proofsec-web-${Stage}-${AWS::AccountId}-${AWS::Region}"
       PublicAccessBlockConfiguration:
@@ -158,6 +164,8 @@ Resources:
   LogBucket:
     Type: AWS::S3::Bucket
     Condition: UseLogs
+    DeletionPolicy: Retain
+    UpdateReplacePolicy: Retain
     Properties:
       BucketName: !Sub "proofsec-web-logs-${Stage}-${AWS::AccountId}-${AWS::Region}"
       # O log legado do CloudFront entrega por ACL: precisa de ObjectWriter (nao BucketOwnerEnforced).

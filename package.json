@@ -5,7 +5,7 @@
   "scripts": {
     "setup": "npm --prefix frontend install && npm --prefix contracts install && npm --prefix agent install",
     "dev": "npm --prefix frontend run dev",
-    "build:web": "npm --prefix frontend run build",
+    "build:web": "npm --prefix frontend run build:static",
     "test:backend": "cd backend-serverless && python -m unittest discover -s tests -v",
     "agent:demo": "python agent/agent.py",
     "agent:executor": "npm --prefix agent run executor",

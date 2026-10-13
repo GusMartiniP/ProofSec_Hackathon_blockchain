@@ -321,7 +321,9 @@ Resources:
         "POST /agent/proposals/{jobId}/executed": { ThrottlingBurstLimit: 10, ThrottlingRateLimit: 5 }
         "POST /agent/proposals/{jobId}/rejected": { ThrottlingBurstLimit: 10, ThrottlingRateLimit: 5 }
       AccessLogSettings:
-        DestinationArn: !GetAtt ApiAccessLogGroup.Arn
+        # PS-51: GetAtt LogGroup.Arn termina em `:*`, mas o API Gateway persiste o ARN
+        # sem esse sufixo e deixa a stack permanentemente DRIFTED.
+        DestinationArn: !Sub "arn:${AWS::Partition}:logs:${AWS::Region}:${AWS::AccountId}:log-group:/proofsec/${Stage}/api-access"
         Format: '{"requestId":"$context.requestId","ip":"$context.identity.sourceIp","time":"$context.requestTime","routeKey":"$context.routeKey","status":"$context.status","latencyMs":"$context.responseLatency","authorizerError":"$context.authorizer.error","integrationError":"$context.integrationErrorMessage"}'
       Auth:
         Authorizers:
