@@ -76,6 +76,7 @@ Estados finais: Completed, Resolved, Refunded, Cancelled. Em todos, o vault é z
 | P-9 | Evidência só do pesquisador vinculado, antes do prazo, hash ≠ 0 | `submit_evidence` | verificado |
 | P-10 | Fechar o vault não é bloqueável por doação de tokens | distribui `vault.amount` | verificado |
 | P-11 | `Config` não pode ser reinicializada nem sofrer front-run | `initialize_config` exige sign da upgrade authority via `ProgramData` (PS-03) | PS-03 |
+| P-13 | O árbitro de um job nunca é o cliente nem o pesquisador dele (quem decide a divisão não é parte) | `require_independent_arbiter` em `initialize_job`, `initialize_job_by_agent`, `assign_researcher` e `accept_job` (PS-52, ADR-028) | PS-52 |
 | P-12 | A recuperação de último recurso só devolve ao cliente, só em `EvidenceSubmitted`/`Disputed` e só depois de `RECOVERY_GRACE_PERIOD` (30 dias) | `recover_stuck_funds`: `has_one = client`, ATA do cliente, estado e carência (PS-37, ADR-021) | PS-37 |
 
 ## 5. Modelo econômico

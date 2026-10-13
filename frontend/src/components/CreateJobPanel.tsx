@@ -49,11 +49,18 @@ export function CreateJobPanel() {
   const [reviewHours, setReviewHours] = useState("72");
   const [researcher, setResearcher] = useState("");
   const [busy, setBusy] = useState(false);
+  const arbiterWallet = !!wallet && wallet === config?.arbiter;
 
   const submit = async () => {
     if (researcher && !isPubkey(researcher)) {
       return run("Validation", async () => {
         throw new Error("invalid researcher pubkey");
+      });
+    }
+    // PS-52: the program refuses an arbiter that is a party of the job; checking here avoids a doomed wallet prompt
+    if (researcher && config && researcher === config.arbiter) {
+      return run("Validation", async () => {
+        throw new Error("the platform arbiter cannot be the researcher of a job");
       });
     }
     setBusy(true);
@@ -125,7 +132,12 @@ export function CreateJobPanel() {
           The SHA-256 of the scope + rules of engagement goes on-chain as the formal testing authorization.
           After the evidence is submitted, the client has the review window to approve or dispute; with no response, payment is released.
         </p>
-        <Button onClick={submit} busy={busy} disabled={!wallet || !config} className="w-full">
+        {arbiterWallet && (
+          <p className="text-[11px] text-amber-300/90">
+            This wallet is the platform arbiter, so it cannot be the client of a job (PS-52). Switch to another wallet to create escrows.
+          </p>
+        )}
+        <Button onClick={submit} busy={busy} disabled={!wallet || !config || arbiterWallet} className="w-full">
           Sign and lock {budget || 0} USDC
         </Button>
       </div>

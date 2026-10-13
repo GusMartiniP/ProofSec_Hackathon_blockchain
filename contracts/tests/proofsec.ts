@@ -11,19 +11,46 @@ import {
 import {
   ACCOUNT_SIZE,
   TOKEN_PROGRAM_ID,
-  approve,
+  approve as splApprove,
   createAssociatedTokenAccountIdempotentInstruction,
-  createMint,
-  freezeAccount,
+  createMint as splCreateMint,
+  freezeAccount as splFreezeAccount,
   getAccount,
   getAssociatedTokenAddressSync,
-  getOrCreateAssociatedTokenAccount,
-  mintTo,
-  revoke,
-  transfer,
+  getOrCreateAssociatedTokenAccount as splGetOrCreateAta,
+  mintTo as splMintTo,
+  revoke as splRevoke,
+  transfer as splTransfer,
 } from "@solana/spl-token";
 import { createHash, randomBytes } from "crypto";
 import { assert } from "chai";
+
+/**
+ * O Surfpool avança a altura de bloco a cada transação, mas só renova o blockhash com o relógio. Depois de muitas
+ * transações seguidas, o blockhash que o `sendAndConfirmTransaction` do spl-token usa já expirou ("Blockhash not
+ * found" / "block height exceeded"). O `.rpc()` do Anchor busca outro a cada envio e não sofre disso. Estes
+ * wrappers repetem o helper depois de uma pausa curta, que deixa o blockhash renovar. Não escondem erros de
+ * programa: só reagem a essas duas mensagens, e só nos helpers do spl-token.
+ */
+async function retryStaleBlockhash<T>(fn: () => Promise<T>, tries = 5): Promise<T> {
+  for (let i = 0; ; i++) {
+    try {
+      return await fn();
+    } catch (e: any) {
+      const msg = `${e?.message ?? e} ${e?.transactionMessage ?? ""}`;
+      if (i >= tries || !/Blockhash not found|block height exceeded/i.test(msg)) throw e;
+      await new Promise((r) => setTimeout(r, 800));
+    }
+  }
+}
+const createMint = (...a: Parameters<typeof splCreateMint>) => retryStaleBlockhash(() => splCreateMint(...a));
+const freezeAccount = (...a: Parameters<typeof splFreezeAccount>) => retryStaleBlockhash(() => splFreezeAccount(...a));
+const getOrCreateAssociatedTokenAccount = (...a: Parameters<typeof splGetOrCreateAta>) =>
+  retryStaleBlockhash(() => splGetOrCreateAta(...a));
+const mintTo = (...a: Parameters<typeof splMintTo>) => retryStaleBlockhash(() => splMintTo(...a));
+const revoke = (...a: Parameters<typeof splRevoke>) => retryStaleBlockhash(() => splRevoke(...a));
+const transfer = (...a: Parameters<typeof splTransfer>) => retryStaleBlockhash(() => splTransfer(...a));
+const approve = (...a: Parameters<typeof splApprove>) => retryStaleBlockhash(() => splApprove(...a));
 
 /**
  * Testes do programa ProofSec — `anchor test`.
@@ -560,6 +587,39 @@ describe("proofsec", () => {
         await updateConfig({});
       }
     });
+
+    it("PS-52 regression: o árbitro não pode ser o cliente nem o pesquisador do job", async () => {
+      // árbitro == cliente: o cliente decidiria a própria disputa
+      await updateConfig({ arbiter: client.publicKey });
+      try {
+        await expectError(createJob({ researcher: null }), "ArbiterConflict");
+        await expectError(createJob(), "ArbiterConflict");
+      } finally {
+        await updateConfig({});
+      }
+
+      // árbitro == pesquisador: na criação com pesquisador atribuído e na atribuição posterior
+      await updateConfig({ arbiter: researcher.publicKey });
+      try {
+        await expectError(createJob(), "ArbiterConflict");
+        const id = await createJob({ researcher: null }); // sem pesquisador ainda: vale
+        const jobAccount = jobPda(client.publicKey, id);
+        await expectError(
+          P.assignResearcher(researcher.publicKey).accountsPartial({ jobAccount, client: client.publicKey }).signers([client]).rpc(),
+          "ArbiterConflict"
+        );
+        assert.ok((await job(id)).researcher.equals(PublicKey.default), "atribuição recusada não altera o job");
+        // um terceiro continua podendo ser atribuído, e remover a atribuição segue valendo
+        await P.assignResearcher(attacker.publicKey).accountsPartial({ jobAccount, client: client.publicKey }).signers([client]).rpc();
+        await P.assignResearcher(PublicKey.default).accountsPartial({ jobAccount, client: client.publicKey }).signers([client]).rpc();
+      } finally {
+        await updateConfig({});
+      }
+
+      // com árbitro independente (config normal) o fluxo segue igual
+      const ok = await createJob();
+      assert.ok((await job(ok)).arbiter.equals(arbiter.publicKey));
+    });
   });
 
   // ==================================================================
@@ -669,6 +729,17 @@ describe("proofsec", () => {
       );
       await P.assignResearcher(researcher.publicKey).accountsPartial({ jobAccount: jobPda(client.publicKey, id), client: client.publicKey }).signers([client]).rpc();
       await accept(id, researcher);
+    });
+
+    it("PS-52 regression: o agente não abre job para uma empresa que é o próprio árbitro", async () => {
+      await setPolicy(true, 500, 10_000);
+      await updateConfig({ arbiter: client.publicKey });
+      try {
+        await expectError(agentCreate(10), "ArbiterConflict");
+      } finally {
+        await updateConfig({});
+      }
+      await agentCreate(10); // com o árbitro normal, abre
     });
 
     it("PS-14 regression: rent do vault de job do agente volta para o agente", async () => {

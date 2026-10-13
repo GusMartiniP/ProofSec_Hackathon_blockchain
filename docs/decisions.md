@@ -395,3 +395,29 @@ resolver tudo). Qualquer uma pode ser revista por novo ADR.
   assinaturas). Relatórios antigos abrem pela chave legada (a carteira assina a mensagem antiga). Se cliente e
   pesquisador estiverem em versões diferentes, o app tenta as versões de chave até achar a que o envelope usa.
   Exige novo build do frontend e deploy do backend (a verificação do vínculo).
+
+## ADR-028 — O árbitro não pode ser parte do job (cliente nem pesquisador) · Aceita
+
+- **Decisão:** o programa recusa (`ArbiterConflict`, erro 6031) qualquer job em que o árbitro congelado seja o
+  cliente ou o pesquisador: `initialize_job` (cliente e pesquisador inicial), `initialize_job_by_agent` (empresa),
+  `assign_researcher` (pesquisador atribuído) e `accept_job` (cobre jobs abertos criados antes da regra).
+  O erro entra no **fim** da lista, então os códigos existentes não mudam.
+- **Motivo:** o árbitro decide a divisão da disputa (`resolve_dispute`). Se ele for o cliente ou o pesquisador, decide
+  a própria causa. Na devnet isso era fácil de acontecer: árbitro, tesouraria e upgrade authority são a mesma carteira
+  de deploy, que também serve para testar como empresa ou pesquisador.
+- **Alternativas:** (a) checar também em `resolve_dispute`: criaria um caminho de falha que ninguém consegue testar
+  depois da regra, e os fundos já têm saída pelo timeout 50/50; (b) só validar na UI e no backend: o programa é a
+  fronteira de segurança (`contracts/AGENTS.md`); (c) impedir na `Config` que o árbitro seja um cliente: o contrato não
+  conhece os clientes futuros.
+- **Segurança:** sem mudança de layout, contas, instruções, eventos ou IDL além do erro novo e das mensagens de erro,
+  agora em inglês (o frontend as exibe). Jobs existentes não são tocados. A regra nunca bloqueia saída de fundos
+  (INV-4): cancelar, reembolsar, aprovar, sacar e o timeout seguem como antes.
+- **Operacional:** é um **upgrade** do programa na devnet (mesmo Program ID), feito pela upgrade authority. O binário
+  novo é maior que o espaço do ProgramData, então exige `solana program extend` antes (a devnet pede no mínimo 10 240
+  bytes). O `solana program deploy` 3.1.10 recusou o ELF SBPF v3 que o `anchor build` gera, então o binário de deploy é
+  compilado com `anchor build --arch v0` (496 264 bytes) e a suíte inteira foi executada nele (36/36, inclusive os 7
+  testes de relógio). Backup do binário anterior em `~/proofsec_HCYk_before_ps52.so` (WSL) para rollback. O frontend ganhou as mesmas checagens antes da assinatura (a
+  carteira do árbitro não cria escrows; o árbitro não é atribuído nem se candidata ao próprio job).
+- **Verificação:** `PS-52 regression` (config: árbitro igual ao cliente e ao pesquisador, na criação e na atribuição;
+  agente) em `contracts/tests/proofsec.ts`; `anchor test` 36/36. Os helpers do spl-token ganharam repetição em
+  "Blockhash not found" (o Surfpool avança a altura de bloco por transação e só renova o blockhash com o relógio).

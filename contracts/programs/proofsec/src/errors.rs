@@ -2,66 +2,68 @@ use anchor_lang::prelude::*;
 
 #[error_code]
 pub enum ProofSecError {
-    #[msg("Job não está disponível para aceite.")]
+    #[msg("Job is not available to accept.")]
     JobNotOpen,
-    #[msg("Job não está em andamento.")]
+    #[msg("Job is not in progress.")]
     JobNotInProgress,
-    #[msg("Pesquisador não autorizado para este job.")]
+    #[msg("Researcher is not authorized for this job.")]
     UnauthorizedResearcher,
-    #[msg("Evidência técnica ainda não foi submetida.")]
+    #[msg("Evidence has not been submitted yet.")]
     EvidenceNotSubmitted,
-    #[msg("O prazo do contrato ainda não expirou.")]
+    #[msg("The job deadline has not passed yet.")]
     DeadlineNotExpired,
-    #[msg("O prazo do contrato já expirou.")]
+    #[msg("The job deadline has already passed.")]
     DeadlineExpired,
-    #[msg("Não é possível reembolsar neste estado.")]
+    #[msg("Cannot refund in this state.")]
     CannotRefund,
-    #[msg("A janela de revisão ainda está aberta.")]
+    #[msg("The review window is still open.")]
     ReviewWindowOpen,
-    #[msg("A janela de revisão já terminou.")]
+    #[msg("The review window has already ended.")]
     ReviewWindowClosed,
-    #[msg("Job não está em disputa.")]
+    #[msg("Job is not in dispute.")]
     NotDisputed,
-    #[msg("Valor inválido.")]
+    #[msg("Invalid amount.")]
     InvalidAmount,
-    #[msg("Prazo inválido.")]
+    #[msg("Invalid deadline.")]
     InvalidDeadline,
-    #[msg("Janela de revisão inválida.")]
+    #[msg("Invalid review period.")]
     InvalidReviewPeriod,
-    #[msg("job_id inválido (1 a 32 bytes).")]
+    #[msg("Invalid job_id (1 to 32 bytes).")]
     InvalidJobId,
-    #[msg("Hash inválido (não pode ser zero).")]
+    #[msg("Invalid hash (cannot be zero).")]
     InvalidHash,
-    #[msg("Mint não permitido pela configuração.")]
+    #[msg("Mint is not allowed by the config.")]
     MintNotAllowed,
-    #[msg("Conta de token não pertence à carteira esperada.")]
+    #[msg("Token account does not belong to the expected wallet.")]
     InvalidTokenAccount,
-    #[msg("Taxa acima do máximo permitido.")]
+    #[msg("Fee above the maximum allowed.")]
     FeeTooHigh,
-    #[msg("Basis points inválidos.")]
+    #[msg("Invalid basis points.")]
     InvalidBps,
-    #[msg("Política do agente está inativa.")]
+    #[msg("Agent policy is inactive.")]
     PolicyInactive,
-    #[msg("Valor excede o limite por job da política do agente.")]
+    #[msg("Amount exceeds the agent policy's per-job limit.")]
     ExceedsPerJobLimit,
-    #[msg("Valor excede o limite do período da política do agente.")]
+    #[msg("Amount exceeds the agent policy's period limit.")]
     ExceedsPeriodLimit,
-    #[msg("Parâmetros de política inválidos.")]
+    #[msg("Invalid policy parameters.")]
     InvalidPolicy,
-    #[msg("Overflow aritmético.")]
+    #[msg("Arithmetic overflow.")]
     MathOverflow,
-    #[msg("Nenhum pesquisador atribuído: o cliente precisa atribuir antes do aceite.")]
+    #[msg("No researcher assigned: the client must assign one before acceptance.")]
     ResearcherNotAssigned,
-    #[msg("O cliente não pode ser o pesquisador do próprio job.")]
+    #[msg("The client cannot be the researcher of their own job.")]
     InvalidResearcher,
-    #[msg("Prazo de disputa inválido.")]
+    #[msg("Invalid dispute period.")]
     InvalidDisputePeriod,
-    #[msg("O prazo do árbitro ainda não terminou.")]
+    #[msg("The arbiter's deadline has not passed yet.")]
     DisputeWindowOpen,
-    #[msg("Autoridade inválida (chave vazia).")]
+    #[msg("Invalid authority (empty key).")]
     InvalidAuthority,
-    #[msg("Este estado não permite a recuperação de último recurso.")]
+    #[msg("This state does not allow last-resort recovery.")]
     CannotRecover,
-    #[msg("A carência da recuperação de último recurso ainda não terminou.")]
+    #[msg("The last-resort recovery grace period has not passed yet.")]
     RecoveryGraceNotElapsed,
+    #[msg("The job's arbiter cannot be its client or its researcher.")]
+    ArbiterConflict,
 }

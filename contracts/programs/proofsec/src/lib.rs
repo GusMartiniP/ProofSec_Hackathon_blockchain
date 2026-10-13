@@ -185,6 +185,7 @@ pub mod proofsec {
             now,
         )?;
         require_keys_neq!(researcher, client, ProofSecError::InvalidResearcher);
+        require_independent_arbiter(ctx.accounts.config.arbiter, client, researcher)?;
 
         token::transfer_checked(
             CpiContext::new(
@@ -261,6 +262,11 @@ pub mod proofsec {
             MIN_AGENT_REVIEW_PERIOD,
             &scope_hash,
             now,
+        )?;
+        require_independent_arbiter(
+            ctx.accounts.config.arbiter,
+            ctx.accounts.owner.key(),
+            Pubkey::default(),
         )?;
 
         // --- Guardrail de gasto (imposto on-chain, independente da LLM/backend) ---
@@ -362,6 +368,7 @@ pub mod proofsec {
         let job = &mut ctx.accounts.job_account;
         require!(job.status == JobStatus::Open, ProofSecError::JobNotOpen);
         require_keys_neq!(researcher, job.client, ProofSecError::InvalidResearcher);
+        require_independent_arbiter(job.arbiter, job.client, researcher)?;
         job.researcher = researcher;
         emit!(ResearcherAssigned {
             job: job.key(),
@@ -388,6 +395,8 @@ pub mod proofsec {
             researcher,
             ProofSecError::UnauthorizedResearcher
         );
+        // Jobs criados antes da regra de independência do árbitro (PS-52) também são cobertos aqui.
+        require_independent_arbiter(job.arbiter, job.client, researcher)?;
 
         job.status = JobStatus::InProgress;
         emit!(JobAccepted {
@@ -647,6 +656,16 @@ fn validate_config(
         (MIN_DISPUTE_PERIOD..=MAX_DISPUTE_PERIOD).contains(&dispute_period),
         ProofSecError::InvalidDisputePeriod
     );
+    Ok(())
+}
+
+/// O árbitro decide a divisão de uma disputa, então não pode ser parte dela (PS-52): nem o cliente nem o
+/// pesquisador do job. `Pubkey::default()` em `researcher` significa "ainda sem pesquisador".
+fn require_independent_arbiter(arbiter: Pubkey, client: Pubkey, researcher: Pubkey) -> Result<()> {
+    require_keys_neq!(arbiter, client, ProofSecError::ArbiterConflict);
+    if researcher != Pubkey::default() {
+        require_keys_neq!(arbiter, researcher, ProofSecError::ArbiterConflict);
+    }
     Ok(())
 }
 

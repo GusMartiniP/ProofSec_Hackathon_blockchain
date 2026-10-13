@@ -2508,157 +2508,162 @@
     {
       "code": 6000,
       "name": "JobNotOpen",
-      "msg": "Job não está disponível para aceite."
+      "msg": "Job is not available to accept."
     },
     {
       "code": 6001,
       "name": "JobNotInProgress",
-      "msg": "Job não está em andamento."
+      "msg": "Job is not in progress."
     },
     {
       "code": 6002,
       "name": "UnauthorizedResearcher",
-      "msg": "Pesquisador não autorizado para este job."
+      "msg": "Researcher is not authorized for this job."
     },
     {
       "code": 6003,
       "name": "EvidenceNotSubmitted",
-      "msg": "Evidência técnica ainda não foi submetida."
+      "msg": "Evidence has not been submitted yet."
     },
     {
       "code": 6004,
       "name": "DeadlineNotExpired",
-      "msg": "O prazo do contrato ainda não expirou."
+      "msg": "The job deadline has not passed yet."
     },
     {
       "code": 6005,
       "name": "DeadlineExpired",
-      "msg": "O prazo do contrato já expirou."
+      "msg": "The job deadline has already passed."
     },
     {
       "code": 6006,
       "name": "CannotRefund",
-      "msg": "Não é possível reembolsar neste estado."
+      "msg": "Cannot refund in this state."
     },
     {
       "code": 6007,
       "name": "ReviewWindowOpen",
-      "msg": "A janela de revisão ainda está aberta."
+      "msg": "The review window is still open."
     },
     {
       "code": 6008,
       "name": "ReviewWindowClosed",
-      "msg": "A janela de revisão já terminou."
+      "msg": "The review window has already ended."
     },
     {
       "code": 6009,
       "name": "NotDisputed",
-      "msg": "Job não está em disputa."
+      "msg": "Job is not in dispute."
     },
     {
       "code": 6010,
       "name": "InvalidAmount",
-      "msg": "Valor inválido."
+      "msg": "Invalid amount."
     },
     {
       "code": 6011,
       "name": "InvalidDeadline",
-      "msg": "Prazo inválido."
+      "msg": "Invalid deadline."
     },
     {
       "code": 6012,
       "name": "InvalidReviewPeriod",
-      "msg": "Janela de revisão inválida."
+      "msg": "Invalid review period."
     },
     {
       "code": 6013,
       "name": "InvalidJobId",
-      "msg": "job_id inválido (1 a 32 bytes)."
+      "msg": "Invalid job_id (1 to 32 bytes)."
     },
     {
       "code": 6014,
       "name": "InvalidHash",
-      "msg": "Hash inválido (não pode ser zero)."
+      "msg": "Invalid hash (cannot be zero)."
     },
     {
       "code": 6015,
       "name": "MintNotAllowed",
-      "msg": "Mint não permitido pela configuração."
+      "msg": "Mint is not allowed by the config."
     },
     {
       "code": 6016,
       "name": "InvalidTokenAccount",
-      "msg": "Conta de token não pertence à carteira esperada."
+      "msg": "Token account does not belong to the expected wallet."
     },
     {
       "code": 6017,
       "name": "FeeTooHigh",
-      "msg": "Taxa acima do máximo permitido."
+      "msg": "Fee above the maximum allowed."
     },
     {
       "code": 6018,
       "name": "InvalidBps",
-      "msg": "Basis points inválidos."
+      "msg": "Invalid basis points."
     },
     {
       "code": 6019,
       "name": "PolicyInactive",
-      "msg": "Política do agente está inativa."
+      "msg": "Agent policy is inactive."
     },
     {
       "code": 6020,
       "name": "ExceedsPerJobLimit",
-      "msg": "Valor excede o limite por job da política do agente."
+      "msg": "Amount exceeds the agent policy's per-job limit."
     },
     {
       "code": 6021,
       "name": "ExceedsPeriodLimit",
-      "msg": "Valor excede o limite do período da política do agente."
+      "msg": "Amount exceeds the agent policy's period limit."
     },
     {
       "code": 6022,
       "name": "InvalidPolicy",
-      "msg": "Parâmetros de política inválidos."
+      "msg": "Invalid policy parameters."
     },
     {
       "code": 6023,
       "name": "MathOverflow",
-      "msg": "Overflow aritmético."
+      "msg": "Arithmetic overflow."
     },
     {
       "code": 6024,
       "name": "ResearcherNotAssigned",
-      "msg": "Nenhum pesquisador atribuído: o cliente precisa atribuir antes do aceite."
+      "msg": "No researcher assigned: the client must assign one before acceptance."
     },
     {
       "code": 6025,
       "name": "InvalidResearcher",
-      "msg": "O cliente não pode ser o pesquisador do próprio job."
+      "msg": "The client cannot be the researcher of their own job."
     },
     {
       "code": 6026,
       "name": "InvalidDisputePeriod",
-      "msg": "Prazo de disputa inválido."
+      "msg": "Invalid dispute period."
     },
     {
       "code": 6027,
       "name": "DisputeWindowOpen",
-      "msg": "O prazo do árbitro ainda não terminou."
+      "msg": "The arbiter's deadline has not passed yet."
     },
     {
       "code": 6028,
       "name": "InvalidAuthority",
-      "msg": "Autoridade inválida (chave vazia)."
+      "msg": "Invalid authority (empty key)."
     },
     {
       "code": 6029,
       "name": "CannotRecover",
-      "msg": "Este estado não permite a recuperação de último recurso."
+      "msg": "This state does not allow last-resort recovery."
     },
     {
       "code": 6030,
       "name": "RecoveryGraceNotElapsed",
-      "msg": "A carência da recuperação de último recurso ainda não terminou."
+      "msg": "The last-resort recovery grace period has not passed yet."
+    },
+    {
+      "code": 6031,
+      "name": "ArbiterConflict",
+      "msg": "The job's arbiter cannot be its client or its researcher."
     }
   ],
   "types": [

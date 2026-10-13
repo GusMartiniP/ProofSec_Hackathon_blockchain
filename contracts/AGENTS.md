@@ -76,10 +76,10 @@ fee_bps 300 · dispute_period 302 · dispute_deadline 310 · treasury 318 · job
 | `initialize_config` | upgrade authority | `init`; `ProgramData.upgrade_authority == admin` (PS-03) | — |
 | `update_config` | admin | `has_one = admin`, fee ≤ 10%; affects **new** jobs only (PS-04) | — |
 | `set_agent_policy` | owner | PDA from owner; existing owner must match | — |
-| `initialize_job` | client | owner/mint of source ATA; deadline/review/hash/mint checks; researcher ≠ client; snapshots arbiter/fee/dispute_period | — |
-| `initialize_job_by_agent` | agent | `has_one = agent, owner`; active; per-job and per-period limits; no researcher; review ≥ 72 h; rent_payer = agent (PS-05, PS-14) | — |
-| `assign_researcher` | client | `has_one = client`; researcher ≠ client (default = unassign) | Open |
-| `accept_job` | researcher | must be the **assigned** researcher (PS-01); before deadline | Open |
+| `initialize_job` | client | owner/mint of source ATA; deadline/review/hash/mint checks; researcher ≠ client; arbiter ≠ client and ≠ researcher (PS-52); snapshots arbiter/fee/dispute_period | — |
+| `initialize_job_by_agent` | agent | `has_one = agent, owner`; active; per-job and per-period limits; no researcher; arbiter ≠ owner (PS-52); review ≥ 72 h; rent_payer = agent (PS-05, PS-14) | — |
+| `assign_researcher` | client | `has_one = client`; researcher ≠ client and ≠ job arbiter (PS-52) (default = unassign) | Open |
+| `accept_job` | researcher | must be the **assigned** researcher (PS-01); not the job arbiter (PS-52); before deadline | Open |
 | `submit_evidence` | researcher | stored researcher; before deadline; hash ≠ 0 | InProgress |
 | `approve_and_release` | client | `has_one` client/vault/mint/researcher; payout ATAs | EvidenceSubmitted |
 | `claim_after_review` | researcher | same; `now > review_deadline` | EvidenceSubmitted |

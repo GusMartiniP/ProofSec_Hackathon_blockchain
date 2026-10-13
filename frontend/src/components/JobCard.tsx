@@ -52,7 +52,7 @@ export function JobCard({ job }: { job: JobView }) {
   const canRecover = recoverAfter !== null && now > recoverAfter;
   // PS-01: only the researcher assigned by the client can accept
   const canAccept = job.status === "OPEN" && isResearcher && !deadlinePassed;
-  const canApply = HAS_API && job.status === "OPEN" && !job.researcher && !!wallet && !isClient && !deadlinePassed;
+  const canApply = HAS_API && job.status === "OPEN" && !job.researcher && !!wallet && !isClient && !isArbiter && !deadlinePassed;
 
   const act = async (key: string, label: string, fn: () => Promise<unknown>) => {
     setBusy(key);
@@ -109,7 +109,14 @@ export function JobCard({ job }: { job: JobView }) {
             <AssignBox
               applicants={job.meta?.applicants ?? []}
               current={job.researcher}
-              onAssign={(r) => act("assign", r ? "Assigning researcher" : "Removing assignment", () => assignResearcher(program, job, r))}
+              onAssign={(r) =>
+                // PS-52: the program refuses it too; checking here avoids a wallet prompt that is bound to fail
+                r && r === job.arbiter
+                  ? run("Assigning researcher", async () => {
+                      throw new Error("the job's arbiter cannot be its researcher");
+                    })
+                  : act("assign", r ? "Assigning researcher" : "Removing assignment", () => assignResearcher(program, job, r))
+              }
               busy={busy === "assign"}
             />
             <Button variant="ghost" busy={busy === "cancel"} onClick={() => act("cancel", "Cancelling and refunding", () => cancelJob(program, job))}>
