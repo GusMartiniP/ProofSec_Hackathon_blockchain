@@ -52,5 +52,42 @@ class AgentBudgetScaleTest(unittest.TestCase):
         self.assertIn("AllowedPattern: '^(1|0\\.[0-9]{1,3})$'", param)
 
 
+class AwsHardeningTest(unittest.TestCase):
+    """Keep cost alerts independent of credits and audit within the selected Region."""
+
+    def test_ceiling_never_exceeds_the_approved_140_usd(self):
+        block = _block("MonthlyCeilingUsd")
+        self.assertIn("Default: 140", block)
+        self.assertIn("MinValue: 1", block)
+        self.assertIn("MaxValue: 140", block)
+
+    def test_ceiling_adds_early_and_forecast_alerts_without_removing_operating_budget(self):
+        ceiling = _block("MonthlyCeilingBudget")
+        self.assertIn("Condition: HasAlertEmail", ceiling)
+        self.assertIn("Amount: !Ref MonthlyCeilingUsd", ceiling)
+        self.assertIn("IncludeCredit: false", ceiling)
+        self.assertIn("IncludeRefund: false", ceiling)
+        for threshold in (50, 75, 90, 100):
+            self.assertIn(f"NotificationType: ACTUAL, ComparisonOperator: GREATER_THAN, Threshold: {threshold},", ceiling)
+        self.assertIn("NotificationType: FORECASTED", ceiling)
+        self.assertEqual(ceiling.count("Address: !Ref AlertEmail"), 5)
+        self.assertNotIn("AWS::Budgets::BudgetsAction", TEMPLATE)
+        self.assertIn("Amount: !Ref MonthlyBudgetUsd", _block("MonthlyBudget"))
+
+    def test_cloudtrail_is_single_region_validated_and_covers_report_access(self):
+        trail = _block("Trail")
+        self.assertIn("IsMultiRegionTrail: false", trail)
+        self.assertIn("IsLogging: true", trail)
+        self.assertIn("EnableLogFileValidation: true", trail)
+        self.assertIn("IncludeManagementEvents: true", trail)
+        self.assertIn("AWS::S3::Object", trail)
+        self.assertIn("proofsec-reports-${Stage}", trail)
+        bucket = _block("TrailBucket")
+        self.assertIn("DeletionPolicy: Retain", bucket)
+        self.assertIn("UpdateReplacePolicy: Retain", bucket)
+        for setting in ("BlockPublicAcls", "IgnorePublicAcls", "BlockPublicPolicy", "RestrictPublicBuckets"):
+            self.assertIn(f"{setting}: true", bucket)
+
+
 if __name__ == "__main__":
     unittest.main()

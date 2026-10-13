@@ -5,6 +5,10 @@ Description: >
   e cerebro do agente de IA. A Solana e a fonte da verdade (INV-1). Nenhuma funcao desta
   stack guarda chave de carteira (INV-2); o executor do agente fica em agent/template.yaml.
 
+Metadata:
+  AWSToolsMetrics:
+    AWSAgentToolkit: aws-cloudformation@3
+
 # Segredos NAO passam por este template (PS-07). Crie antes do primeiro uso, como
 # SecureString no SSM Parameter Store (ver docs/runbook.md):
 #   /proofsec/<stage>/jwt-secret         (obrigatorio, >= 32 caracteres)
@@ -85,6 +89,12 @@ Parameters:
     Default: 20
     MinValue: 1
     Description: Orcamento mensal da conta (so e criado com AlertEmail).
+  MonthlyCeilingUsd:
+    Type: Number
+    Default: 140
+    MinValue: 1
+    MaxValue: 140
+    Description: Teto mensal de referencia em USD; os alertas nao bloqueiam gastos.
   LogRetentionDays:
     Type: Number
     Default: 14
@@ -1168,6 +1178,40 @@ Resources:
           Subscribers:
             - { SubscriptionType: EMAIL, Address: !Ref AlertEmail }
 
+  # Complementa o aviso operacional de USD 20; nunca substitui nem desliga alarmes.
+  # Alertas da conta inteira: 50/75/90/100% realizado e 90% previsto. Sem Budget Actions.
+  MonthlyCeilingBudget:
+    Type: AWS::Budgets::Budget
+    Condition: HasAlertEmail
+    Metadata:
+      com.aws.cloudformation.Context:
+        why: Alert on account spend before the human monthly ceiling, preserving the early operational budget.
+        must: [No automatic budget actions, Ceiling at most USD 140, Preserve the original monthly budget]
+    Properties:
+      Budget:
+        BudgetName: !Sub "proofsec-${Stage}-monthly-ceiling"
+        BudgetType: COST
+        TimeUnit: MONTHLY
+        BudgetLimit:
+          Amount: !Ref MonthlyCeilingUsd
+          Unit: USD
+        CostTypes:
+          IncludeCredit: false
+          IncludeRefund: false
+          IncludeTax: true
+          UseBlended: false
+      NotificationsWithSubscribers:
+        - Notification: { NotificationType: ACTUAL, ComparisonOperator: GREATER_THAN, Threshold: 50, ThresholdType: PERCENTAGE }
+          Subscribers: [{ SubscriptionType: EMAIL, Address: !Ref AlertEmail }]
+        - Notification: { NotificationType: ACTUAL, ComparisonOperator: GREATER_THAN, Threshold: 75, ThresholdType: PERCENTAGE }
+          Subscribers: [{ SubscriptionType: EMAIL, Address: !Ref AlertEmail }]
+        - Notification: { NotificationType: ACTUAL, ComparisonOperator: GREATER_THAN, Threshold: 90, ThresholdType: PERCENTAGE }
+          Subscribers: [{ SubscriptionType: EMAIL, Address: !Ref AlertEmail }]
+        - Notification: { NotificationType: ACTUAL, ComparisonOperator: GREATER_THAN, Threshold: 100, ThresholdType: PERCENTAGE }
+          Subscribers: [{ SubscriptionType: EMAIL, Address: !Ref AlertEmail }]
+        - Notification: { NotificationType: FORECASTED, ComparisonOperator: GREATER_THAN, Threshold: 90, ThresholdType: PERCENTAGE }
+          Subscribers: [{ SubscriptionType: EMAIL, Address: !Ref AlertEmail }]
+
   TrailBucket:
     Type: AWS::S3::Bucket
     Condition: CreateCloudTrail
@@ -1232,11 +1276,16 @@ Resources:
     Type: AWS::CloudTrail::Trail
     Condition: CreateCloudTrail
     DependsOn: TrailBucketPolicy
+    Metadata:
+      com.aws.cloudformation.Context:
+        why: Audit management and report-object access in the selected Region.
+        must: [Single Region only, Log integrity validation enabled, No report plaintext or secrets in logs]
     Properties:
       TrailName: !Sub "proofsec-${Stage}"
       S3BucketName: !Ref TrailBucket
       IsLogging: true
-      IsMultiRegionTrail: true
+      # Projeto de regiao unica (AGENTS.md): auditoria somente na selected Region.
+      IsMultiRegionTrail: false
       IncludeGlobalServiceEvents: true
       EnableLogFileValidation: true
       EventSelectors:
