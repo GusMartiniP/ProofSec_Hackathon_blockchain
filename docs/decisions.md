@@ -432,3 +432,26 @@ resolver tudo). Qualquer uma pode ser revista por novo ADR.
   pesquisador recusados com `ArbiterConflict` (6031); empresa + pesquisador e empresa sem pesquisador passam; o job
   existente segue legível. Foi enviada uma transação idempotente para criar a ATA de USDC da carteira de deploy
   (que também é a tesouraria).
+
+## ADR-029 — Acessos dos agentes pelo IAM Identity Center · Proposta
+
+- **Decisão proposta:** reutilizar os limites da ADR-024 em três permission sets SSO:
+  `ProofSecCodexReadOnly`, `ProofSecClaudePlan` e `ProofSecReviewReadOnly`, sessões de uma hora,
+  na instância existente em `us-east-1`. Cada agente mantém um usuário dedicado. O template
+  `docs/iam/agent-permission-sets.json` não cria usuários nem credenciais; IDs vazios não criam assignments.
+- **Motivo:** o usuário criou `claudeagent` no Identity Center; a integração anterior usava root.
+  Federações temporárias evitam chaves permanentes e preservam a separação entre implementar e revisar.
+- **Alternativas:** usuários IAM da ADR-024; compartilhar AdministratorAccess entre agentes; só usar
+  uma identidade humana. A proposta mantém as capacidades já definidas e troca a autenticação.
+- **Impacto de segurança:** guardrails explícitos negam execução de changesets, alterações IAM,
+  `PassRole`, leitura de valores SSM/Secrets Manager e acesso aos objetos dos relatórios.
+  Claude prepara somente changesets dev; Codex e revisor não os criam. Além das políticas próprias,
+  todos recebem a política AWS gerenciada de OAuth necessária ao MCP; revisor também recebe
+  SecurityAudit. AdministratorAccess existente
+  permanece sob controle humano até validar os novos acessos, evitando perda de acesso.
+- **Impacto operacional:** criar policies e permission sets por changeset revisado; execução humana.
+  O usuário `claudeagent` corresponde ao acesso Claude; Codex/revisor precisam de identidades próprias.
+  O perfil local `ProofSecCodex` ainda autentica como `claudeagent/AdministratorAccess` e é transitório.
+  Antes da implantação, aprovar esta proposta. Ver `docs/aws-hardening-2026-10-12.md`.
+- **Verificação:** CloudFormation ValidateTemplate; Access Analyzer sem erros nas três policies;
+  simulação de negações sensíveis e isolamento dev; revisão independente dos recursos e políticas.

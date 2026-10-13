@@ -150,3 +150,15 @@ correção, controles preventivos e testes de regressão.
 
 Validação depois da recuperação: smoke test do §2, contagem de jobs igual à da chain e
 alarmes ativos.
+
+## 5. Revisão AWS e troca da sessão root — 12/10/2026
+
+Inventário, mudanças preparadas, limites de custo, sequência de changesets e teste completo:
+`docs/aws-hardening-2026-10-12.md`. Os acessos SSO substitutos estão na proposta ADR-029.
+O perfil `ProofSecCodex` foi autenticado por SSO; o proxy Codex foi apontado para ele e exige
+reinício para recarregar a sessão. Confirmar GetCallerIdentity pelo MCP antes de escrever na AWS.
+Executar changesets permanece tarefa humana (AGENTS.md §5 / ADR-024).
+
+Exceção de configuração persistente do hosting: Custom headers do Amplify manual é gerido por
+`frontend/customHttp.yml` (PS-47); aplicar o arquivo completo no app ProofSec e validar headers
+depois da publicação. Status atual desta entrega: arquivo corrigido, host ainda pendente.

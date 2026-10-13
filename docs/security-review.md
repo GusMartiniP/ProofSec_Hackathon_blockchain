@@ -417,3 +417,20 @@ start das Lambdas ainda precisam ser confirmados numa conta AWS dev real.
 | **Claude Code** (`backend-serverless/`, `agent/template.yaml`, desde o ADR-024) | confirmar drift/filtros/eventos na conta dev · preparar CloudTrail opcional · revisar o executor sem implantá-lo |
 | **Claude Code** (`frontend/`, `agent/`, `tests/`) | republicar CSP PS-47 no Amplify · PS-45: migração coordenada de dependências · React 19 · troca automática de RPC na UI (PS-13) · `tests/api-security`/`tests/e2e` · atualizar o manual em PDF |
 | **Antigravity** | revisar cada entrega · manter este arquivo e `decisions.md` |
+
+## Revisão AWS — 12/10/2026
+
+Handoff: `docs/aws-hardening-2026-10-12.md`. Status de implantação separados do código:
+PS-47 continua pendente no host; drift observado IN_SYNC; CloudTrail continua desativado;
+alerta adicional US$140 e permission sets SSO ainda não implantados (proposta ADR-029).
+Sessão local SSO funciona, mas MCP mantém root até reiniciar o Codex. Nenhuma escrita AWS realizada.
+
+| ID | Severidade | Componente / arquivo | Cenário e impacto | Remediação | Verificação | Responsável | Status |
+|---|---|---|---|---|---|---|---|
+| AWS-IR-1 | Low | teste live / `tests/api-security/smoke.py` | Parâmetros dev não restringiam o destino real; sondagens POST/PUT poderiam seguir redirects para outro ambiente | Fixar origens e bucket revisados, validar stack/cluster antes de sondar e proibir redirects | `tests/api-security/test_smoke.py`: produção/mainnet e redirects abortam sem enviar sondagem ao destino; reproduzido no runner antigo | Autor da entrega AWS | Corrigido no código · revisão independente concluída |
+| AWS-IR-2 | Low | teste live / `tests/api-security/smoke.py` | HTTP 200 `{}` passava confidencialidade por lista vazia implícita, mascarando falha | Exigir `success=true`, lista `jobs` e itens dict antes das asserções | Respostas inválidas, drafts e escopos privados sintéticos falham; fixtures públicas e vazias válidas passam; reproduzido no runner antigo | Autor da entrega AWS | Corrigido no código · revisão independente concluída |
+
+Correção de validação na policy fonte: removida a ação inexistente `account:Cancel*` de
+`docs/iam/agent-users.yaml`; template SSO regenerado. Access Analyzer confirmou as três policies
+sem erros; guardrails sensíveis preservados e revisados independentemente. Regra sem efeito
+removida, sem conceder escrita IAM ou desabilitar um controle efetivo.
