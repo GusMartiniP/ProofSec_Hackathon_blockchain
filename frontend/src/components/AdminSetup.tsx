@@ -8,7 +8,7 @@ import { USDC_MINT } from "@/lib/config";
 import { initializeConfig } from "@/lib/program";
 import { Button, Card, Field, SectionTitle } from "./ui";
 
-/** Exibido só enquanto a conta de configuração da plataforma não existe on-chain. */
+/** Shown only while the platform config account does not exist on-chain. */
 export function AdminSetup() {
   const { program, wallet, run } = useProofSec();
   const [arbiter, setArbiter] = useState("");
@@ -20,7 +20,7 @@ export function AdminSetup() {
 
   const submit = async () => {
     setBusy(true);
-    await run("Inicializando a plataforma", () =>
+    await run("Initializing the platform", () =>
       initializeConfig(program, {
         arbiter: new PublicKey(arbiter || wallet!),
         treasury: new PublicKey(treasury || wallet!),
@@ -34,20 +34,20 @@ export function AdminSetup() {
 
   return (
     <Card className="border-amber-500/30">
-      <SectionTitle icon={<Settings className="w-4 h-4 text-amber-300" />}>Configuração inicial da plataforma</SectionTitle>
+      <SectionTitle icon={<Settings className="w-4 h-4 text-amber-300" />}>Initial platform setup</SectionTitle>
       <p className="text-xs text-slate-400 mb-4">
-        O programa ainda não tem a conta de configuração. Só a upgrade authority do programa (a carteira que fez o
-        deploy) consegue inicializar (PS-03). Para a demo, árbitro e tesouraria em branco usam a sua carteira (em produção,
-        use um multisig Squads). Taxa, árbitro e prazo de disputa ficam congelados em cada job na criação.
+        The program does not have a config account yet. Only the program's upgrade authority (the wallet that
+        deployed it) can initialize it (PS-03). For the demo, leaving arbiter and treasury blank uses your own wallet
+        (in production, use a Squads multisig). Fee, arbiter and dispute period are frozen into each job at creation.
       </p>
       <div className="grid sm:grid-cols-2 gap-3">
-        <Field label="Árbitro (pubkey)" placeholder={wallet ?? ""} value={arbiter} onChange={(e) => setArbiter(e.target.value)} />
-        <Field label="Tesouraria (pubkey)" placeholder={wallet ?? ""} value={treasury} onChange={(e) => setTreasury(e.target.value)} />
-        <Field label="Taxa da plataforma (%)" type="number" step="0.1" min="0" max="10" value={fee} onChange={(e) => setFee(e.target.value)} />
-        <Field label="Mint permitido" hint="Vazio = qualquer token" value={mint} onChange={(e) => setMint(e.target.value)} />
+        <Field label="Arbiter (pubkey)" placeholder={wallet ?? ""} value={arbiter} onChange={(e) => setArbiter(e.target.value)} />
+        <Field label="Treasury (pubkey)" placeholder={wallet ?? ""} value={treasury} onChange={(e) => setTreasury(e.target.value)} />
+        <Field label="Platform fee (%)" type="number" step="0.1" min="0" max="10" value={fee} onChange={(e) => setFee(e.target.value)} />
+        <Field label="Allowed mint" hint="Empty = any token" value={mint} onChange={(e) => setMint(e.target.value)} />
         <Field
-          label="Prazo do árbitro (h)"
-          hint="Depois dele, qualquer um aplica a divisão 50/50 (mín. 1 min, máx. 30 dias)"
+          label="Arbiter deadline (h)"
+          hint="After it, anyone can apply the 50/50 split (min. 1 min, max. 30 days)"
           type="number"
           step="0.01"
           min="0.02"
@@ -57,7 +57,7 @@ export function AdminSetup() {
         />
       </div>
       <Button className="mt-4" onClick={submit} busy={busy} disabled={!wallet}>
-        Inicializar configuração
+        Initialize config
       </Button>
     </Card>
   );

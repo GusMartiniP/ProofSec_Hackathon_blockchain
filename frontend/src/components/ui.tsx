@@ -92,17 +92,17 @@ const STATUS_STYLE: Record<string, string> = {
 };
 
 const STATUS_LABEL: Record<string, string> = {
-  OPEN: "Aberto",
-  IN_PROGRESS: "Em andamento",
-  EVIDENCE_SUBMITTED: "Em revisão",
+  OPEN: "Open",
+  IN_PROGRESS: "In progress",
+  EVIDENCE_SUBMITTED: "In review",
   DISPUTED: "Em disputa",
-  COMPLETED: "Pago",
-  RESOLVED: "Resolvido (árbitro)",
-  REFUNDED: "Reembolsado",
-  CANCELLED: "Cancelado",
-  DRAFT: "Rascunho",
-  NEEDS_HUMAN: "Aguardando aprovação humana",
-  AUTO_APPROVED: "Aprovado pela política (executor)",
+  COMPLETED: "Paid",
+  RESOLVED: "Resolved (arbiter)",
+  REFUNDED: "Refunded",
+  CANCELLED: "Cancelled",
+  DRAFT: "Draft",
+  NEEDS_HUMAN: "Awaiting human approval",
+  AUTO_APPROVED: "Approved by policy (executor)",
 };
 
 export function StatusBadge({ status }: { status: JobStatus | string }) {
@@ -132,11 +132,11 @@ export function AddressLink({ address, n = 4 }: { address?: string | null; n?: n
 
 export function formatCountdown(target: number, now: number): string {
   const d = target - now;
-  if (d <= 0) return "expirado";
+  if (d <= 0) return "expired";
   const days = Math.floor(d / 86400);
   const h = Math.floor((d % 86400) / 3600);
   const m = Math.floor((d % 3600) / 60);
   if (days > 0) return `${days}d ${h}h`;
-  if (h > 0) return `${h}h ${m}min`;
-  return `${m}min ${d % 60}s`;
+  if (h > 0) return `${h}h ${m}m`;
+  return `${m}m ${d % 60}s`;
 }

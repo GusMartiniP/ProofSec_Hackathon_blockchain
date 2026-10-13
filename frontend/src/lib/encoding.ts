@@ -5,7 +5,7 @@ export function bytesToHex(bytes: ArrayLike<number>): string {
 /** Converte hex (64 chars) no formato `[u8; 32]` esperado pelo programa. */
 export function hexToBytes32(hex: string): number[] {
   const clean = hex.trim().toLowerCase();
-  if (!/^[0-9a-f]{64}$/.test(clean)) throw new Error("hash SHA-256 inválido (esperado 64 caracteres hex)");
+  if (!/^[0-9a-f]{64}$/.test(clean)) throw new Error("invalid SHA-256 hash (expected 64 hex characters)");
   const out: number[] = [];
   for (let i = 0; i < 64; i += 2) out.push(parseInt(clean.slice(i, i + 2), 16));
   return out;

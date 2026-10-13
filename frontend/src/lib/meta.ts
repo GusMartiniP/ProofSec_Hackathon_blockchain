@@ -19,32 +19,32 @@ export type ExpectedDraft = {
  */
 export async function assertMetaIntegrity(meta: JobMeta, wallet: string, expected: ExpectedDraft = {}): Promise<void> {
   const fail = (why: string): never => {
-    throw new Error(`o backend devolveu dados inconsistentes (${why}); nada foi assinado`);
+    throw new Error(`the backend returned inconsistent data (${why}); nothing was signed`);
   };
-  if (!wallet || meta.clientWallet !== wallet) fail("carteira do cliente");
-  if (typeof meta.scopeDocument !== "string") fail("escopo ausente");
-  if ((await sha256Hex(new TextEncoder().encode(meta.scopeDocument))) !== meta.scopeHash) fail("hash do escopo");
+  if (!wallet || meta.clientWallet !== wallet) fail("client wallet");
+  if (typeof meta.scopeDocument !== "string") fail("missing scope");
+  if ((await sha256Hex(new TextEncoder().encode(meta.scopeDocument))) !== meta.scopeHash) fail("scope hash");
 
   let doc: any;
   try {
     doc = JSON.parse(meta.scopeDocument as string);
   } catch {
-    return fail("escopo ilegível");
+    return fail("unreadable scope");
   }
-  if (doc?.jobId !== meta.jobId || doc?.client !== wallet) fail("escopo de outro job ou cliente");
+  if (doc?.jobId !== meta.jobId || doc?.client !== wallet) fail("scope belongs to another job or client");
 
   const amountBase = Number(meta.amountBase);
-  if (!Number.isSafeInteger(amountBase) || amountBase <= 0) fail("valor");
-  if (Math.round(Number(doc.budgetUsdc) * 1_000_000) !== amountBase) fail("valor diferente do escopo");
-  if (Number(doc.deadlineDays) !== Number(meta.deadlineDays)) fail("prazo diferente do escopo");
-  if (Number(doc.reviewHours) !== Number(meta.reviewHours)) fail("revisão diferente do escopo");
+  if (!Number.isSafeInteger(amountBase) || amountBase <= 0) fail("amount");
+  if (Math.round(Number(doc.budgetUsdc) * 1_000_000) !== amountBase) fail("amount differs from scope");
+  if (Number(doc.deadlineDays) !== Number(meta.deadlineDays)) fail("deadline differs from scope");
+  if (Number(doc.reviewHours) !== Number(meta.reviewHours)) fail("review period differs from scope");
 
-  if (expected.amountBase !== undefined && expected.amountBase !== amountBase) fail("valor diferente do digitado");
-  if (expected.deadlineDays !== undefined && expected.deadlineDays !== Number(meta.deadlineDays)) fail("prazo diferente do digitado");
-  if (expected.reviewHours !== undefined && expected.reviewHours !== Number(meta.reviewHours)) fail("revisão diferente da digitada");
+  if (expected.amountBase !== undefined && expected.amountBase !== amountBase) fail("amount differs from what was entered");
+  if (expected.deadlineDays !== undefined && expected.deadlineDays !== Number(meta.deadlineDays)) fail("deadline differs from what was entered");
+  if (expected.reviewHours !== undefined && expected.reviewHours !== Number(meta.reviewHours)) fail("review period differs from what was entered");
   if (expected.researcher !== undefined && (expected.researcher ?? null) !== (meta.assignedResearcher ?? null)) {
-    fail("pesquisador diferente do digitado");
+    fail("researcher differs from what was entered");
   }
   // Jobs do agente nascem sem pesquisador (PS-05): quem financia depois também não pode receber um
-  if (meta.createdByAgent && meta.assignedResearcher) fail("pesquisador em proposta do agente");
+  if (meta.createdByAgent && meta.assignedResearcher) fail("researcher set on an agent proposal");
 }

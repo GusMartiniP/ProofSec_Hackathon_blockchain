@@ -26,7 +26,7 @@ from common.siginput import decode_signature as _decode_signature
 
 SIWS_DOMAINS = [d.strip() for d in os.environ.get("SIWS_DOMAINS", "localhost:3000").split(",") if d.strip()]
 CHAIN_ID = os.environ.get("SOLANA_CHAIN_ID", "devnet")
-STATEMENT = "Entrar no ProofSec. Esta assinatura nao autoriza nenhuma transacao."
+STATEMENT = "Sign in to ProofSec. This signature does not authorize any transaction."
 NONCE_TTL = 300
 TOKEN_TTL = 12 * 3600
 _NONCE_RE = re.compile(r"^Nonce: ([0-9a-f]{16,64})$", re.M)
@@ -37,9 +37,9 @@ def _secret() -> str:
         value = get_secret("JWT_SECRET_PARAM", "JWT_SECRET")
     except Exception as e:  # noqa: BLE001
         log.error("jwt_secret_unavailable", error=type(e).__name__)
-        raise HttpError(500, "configuração de autenticação indisponível")
+        raise HttpError(500, "authentication configuration unavailable")
     if len(value) < 32:
-        raise HttpError(500, "JWT secret ausente ou curto (mínimo 32 caracteres)")
+        raise HttpError(500, "JWT secret missing or too short (minimum 32 characters)")
     return value
 
 
@@ -50,13 +50,13 @@ def _iso(ts: int) -> str:
 def validate_origin(domain, uri) -> None:
     """O domínio precisa estar na lista permitida e a URI precisa ser a origem dele."""
     if not isinstance(domain, str) or domain not in SIWS_DOMAINS:
-        raise HttpError(400, "domínio não permitido para login")
+        raise HttpError(400, "domain not allowed for sign-in")
     host = domain.split(":")[0]
     allowed = {f"https://{domain}"}
     if host in ("localhost", "127.0.0.1"):
         allowed.add(f"http://{domain}")
     if not isinstance(uri, str) or uri not in allowed:
-        raise HttpError(400, "uri não corresponde ao domínio")
+        raise HttpError(400, "uri does not match the domain")
 
 
 def build_message(domain: str, uri: str, wallet: str, nonce: str, issued_at: int, expires_at: int) -> str:
@@ -81,7 +81,7 @@ def nonce(event, context):
     body = parse_body(event)
     wallet = body.get("wallet")
     if not is_pubkey(wallet):
-        raise HttpError(400, "wallet inválida")
+        raise HttpError(400, "invalid wallet")
     validate_origin(body.get("domain"), body.get("uri"))
     n = secrets.token_hex(12)
     issued = int(time.time())
@@ -96,21 +96,21 @@ def verify_signature(event, context):
     body = parse_body(event)
     wallet, message, signature = body.get("wallet"), body.get("message"), body.get("signature")
     if not is_pubkey(wallet) or not isinstance(message, str) or not isinstance(signature, str):
-        raise HttpError(400, "campos obrigatórios: wallet, message, signature")
+        raise HttpError(400, "required fields: wallet, message, signature")
 
     m = _NONCE_RE.search(message)
     item = db.get_nonce(m.group(1)) if m else None
     if not item or item.get("wallet") != wallet or item.get("message") != message:
         log.warning("login_rejected", reason="nonce_invalid", wallet=wallet)
-        raise HttpError(401, "nonce inválido ou já utilizado")
+        raise HttpError(401, "invalid or already used nonce")
     if int(item.get("expiresAt", 0)) < time.time():
-        raise HttpError(401, "nonce expirado")
+        raise HttpError(401, "nonce expired")
     if not verify(b58decode(wallet), message.encode("utf-8"), _decode_signature(signature)):
         log.warning("login_rejected", reason="bad_signature", wallet=wallet)
-        raise HttpError(401, "assinatura não confere")
+        raise HttpError(401, "signature does not match")
     if not db.consume_nonce(m.group(1)):
         log.warning("login_rejected", reason="replay", wallet=wallet)
-        raise HttpError(401, "nonce inválido ou já utilizado")
+        raise HttpError(401, "invalid or already used nonce")
 
     now = int(time.time())
     token = jwt.encode({"sub": wallet, "iat": now, "exp": now + TOKEN_TTL}, _secret())

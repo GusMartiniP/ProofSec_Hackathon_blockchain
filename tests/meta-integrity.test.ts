@@ -15,7 +15,7 @@ const fixture = JSON.parse(readFileSync(new URL("./fixtures/scope-draft.json", i
 const WALLET = fixture.clientWallet as string;
 const meta = (over: Record<string, unknown> = {}) => ({ ...fixture, ...over }) as any;
 const rejects = (m: any, expected = {}, wallet = WALLET) =>
-  assert.rejects(assertMetaIntegrity(m, wallet, expected), /nada foi assinado/);
+  assert.rejects(assertMetaIntegrity(m, wallet, expected), /nothing was signed/);
 
 describe("assertMetaIntegrity", () => {
   it("aceita o rascunho íntegro gerado pelo backend", async () => {

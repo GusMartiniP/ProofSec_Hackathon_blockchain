@@ -56,9 +56,9 @@ def _page_params(event) -> tuple[int, int]:
         try:
             value = int(raw)
         except (TypeError, ValueError):
-            raise HttpError(400, f"{name} inválido")
+            raise HttpError(400, f"invalid {name}")
         if not low <= value <= high:
-            raise HttpError(400, f"{name} fora do intervalo")
+            raise HttpError(400, f"{name} out of range")
         return value
 
     return read("limit", DEFAULT_PAGE_SIZE, 1, MAX_PAGE_SIZE), read("offset", 0, 0, MAX_PAGE_OFFSET)
@@ -80,14 +80,14 @@ def _validated_targets(value) -> list[str] | str:
     if isinstance(value, str):
         targets = [t.strip() for t in value.replace("\n", ",").split(",") if t.strip()]
         if not targets:
-            raise HttpError(400, "scope precisa conter ao menos um alvo")
+            raise HttpError(400, "scope must contain at least one target")
         if len(targets) > MAX_TARGETS or any(len(t) > MAX_TARGET_LENGTH for t in targets):
-            raise HttpError(400, "scope excede os limites permitidos")
+            raise HttpError(400, "scope exceeds the allowed limits")
         return value
     if not isinstance(value, list) or not value or len(value) > MAX_TARGETS:
-        raise HttpError(400, "scope deve ser texto ou lista não vazia de textos")
+        raise HttpError(400, "scope must be text or a non-empty list of strings")
     if any(not isinstance(t, str) or not t.strip() or len(t.strip()) > MAX_TARGET_LENGTH for t in value):
-        raise HttpError(400, "scope deve conter somente alvos textuais válidos")
+        raise HttpError(400, "scope must contain only valid textual targets")
     return [t.strip() for t in value]
 
 
@@ -95,9 +95,9 @@ def _validated_rules(value) -> list[str] | None:
     if value is None:
         return None
     if not isinstance(value, list) or not value or len(value) > MAX_RULES:
-        raise HttpError(400, "rulesOfEngagement deve ser uma lista não vazia de textos")
+        raise HttpError(400, "rulesOfEngagement must be a non-empty list of strings")
     if any(not isinstance(r, str) or not r.strip() or len(r.strip()) > MAX_RULE_LENGTH for r in value):
-        raise HttpError(400, "rulesOfEngagement contém regra inválida")
+        raise HttpError(400, "rulesOfEngagement contains an invalid rule")
     return [r.strip() for r in value]
 
 
@@ -109,7 +109,7 @@ def list_jobs(event, context):
     limit, offset = _page_params(event)
     if wallet:
         if not is_pubkey(wallet):
-            raise HttpError(400, "wallet inválida")
+            raise HttpError(400, "invalid wallet")
         jobs = [j for j in _jobs_of(wallet) if j.get("status") == "ONCHAIN"]
     else:
         jobs = db.list_jobs_by_status("ONCHAIN")
@@ -132,7 +132,7 @@ def my_jobs(event, context):
 def get_job(event, context):
     item = db.get_job(path_param(event, "jobId"))
     if not item or item.get("status") != "ONCHAIN":
-        raise HttpError(404, "job não encontrado")
+        raise HttpError(404, "job not found")
     return ok({"success": True, "job": public_view(item)})
 
 
@@ -145,47 +145,47 @@ def create_job(event, context):
 
     raw_title = body.get("title")
     if not isinstance(raw_title, str):
-        raise HttpError(400, "title deve ser texto")
+        raise HttpError(400, "title must be text")
     title = raw_title.strip()
     scope = _validated_targets(body.get("scope"))
     rules = _validated_rules(body.get("rulesOfEngagement"))
     raw_deadline = body.get("deadlineDays", 7)
     raw_review = body.get("reviewHours", 72)
     if isinstance(raw_deadline, bool) or isinstance(raw_review, bool):
-        raise HttpError(400, "budgetUsdc, deadlineDays e reviewHours devem ser numéricos")
+        raise HttpError(400, "budgetUsdc, deadlineDays and reviewHours must be numeric")
     try:
         budget_decimal = Decimal(str(body.get("budgetUsdc", 0)))
         deadline_decimal = Decimal(str(raw_deadline))
         review_hours = float(raw_review)
     except (InvalidOperation, TypeError, ValueError, OverflowError):
-        raise HttpError(400, "budgetUsdc, deadlineDays e reviewHours devem ser numéricos")
+        raise HttpError(400, "budgetUsdc, deadlineDays and reviewHours must be numeric")
     if not deadline_decimal.is_finite() or deadline_decimal != deadline_decimal.to_integral_value():
-        raise HttpError(400, "deadlineDays deve ser um número inteiro")
+        raise HttpError(400, "deadlineDays must be an integer")
     if not (1 <= deadline_decimal <= 180):  # antes do int(): "1E+999999" custaria segundos de CPU
-        raise HttpError(400, "deadlineDays deve estar entre 1 e 180")
+        raise HttpError(400, "deadlineDays must be between 1 and 180")
     deadline_days = int(deadline_decimal)
     if not budget_decimal.is_finite() or not (0 < budget_decimal <= 1_000_000):
-        raise HttpError(400, "budgetUsdc fora do intervalo")  # antes da multiplicação (decimal.Overflow)
+        raise HttpError(400, "budgetUsdc out of range")  # antes da multiplicação (decimal.Overflow)
     budget = float(budget_decimal)
     amount_decimal = budget_decimal * Decimal(1_000_000)
     researcher = body.get("researcher") or None
 
     if not title:
-        raise HttpError(400, "campos obrigatórios: title, scope")
+        raise HttpError(400, "required fields: title, scope")
     if len(title) > MAX_TITLE_LENGTH:
-        raise HttpError(400, "title excede 120 caracteres")
+        raise HttpError(400, "title exceeds 120 characters")
     if not (0 < budget <= 1_000_000):
-        raise HttpError(400, "budgetUsdc fora do intervalo")
+        raise HttpError(400, "budgetUsdc out of range")
     if amount_decimal != amount_decimal.to_integral_value() or amount_decimal < 1:
-        raise HttpError(400, "budgetUsdc deve ter no máximo 6 casas decimais")
+        raise HttpError(400, "budgetUsdc must have at most 6 decimal places")
     if not (1 <= deadline_days <= 180):
-        raise HttpError(400, "deadlineDays deve estar entre 1 e 180")
+        raise HttpError(400, "deadlineDays must be between 1 and 180")
     if not (1 / 60 <= review_hours <= 720):
-        raise HttpError(400, "reviewHours deve estar entre 1 minuto e 720 horas")
+        raise HttpError(400, "reviewHours must be between 1 minute and 720 hours")
     if researcher and not is_pubkey(researcher):
-        raise HttpError(400, "researcher inválido")
+        raise HttpError(400, "invalid researcher")
     if researcher == wallet:
-        raise HttpError(400, "o cliente não pode ser o pesquisador do próprio job")
+        raise HttpError(400, "the client cannot be the researcher of their own job")
 
     day_ago = time.time() - 86_400
     recent_drafts = [
@@ -193,7 +193,7 @@ def create_job(event, context):
         if j.get("status") == "DRAFT" and not j.get("createdByAgent") and int(j.get("createdAt") or 0) > day_ago
     ]
     if len(recent_drafts) >= MAX_DRAFTS_PER_DAY:
-        raise HttpError(429, "limite de rascunhos por dia atingido")
+        raise HttpError(429, "daily draft limit reached")
 
     job_id = new_job_id()
     doc = build_scope_document(
@@ -240,11 +240,11 @@ def apply(event, context):
     job_id = path_param(event, "jobId")
     item = db.get_job(job_id)
     if not item or item.get("status") != "ONCHAIN":
-        raise HttpError(404, "job não encontrado")
+        raise HttpError(404, "job not found")
     if item.get("onchainStatus") != "OPEN" or item.get("researcherWallet"):
-        raise HttpError(409, "este job não está aceitando candidaturas")
+        raise HttpError(409, "this job is not accepting applications")
     if wallet == item.get("clientWallet"):
-        raise HttpError(400, "o cliente não pode se candidatar ao próprio job")
+        raise HttpError(400, "the client cannot apply to their own job")
     applicants = list(item.get("applicants") or [])
     if wallet in applicants:
         return ok({"success": True, "applied": True})
@@ -254,10 +254,10 @@ def apply(event, context):
         if current and wallet in (current.get("applicants") or []):
             return ok({"success": True, "applied": True})
         if not current or current.get("status") != "ONCHAIN":
-            raise HttpError(404, "job não encontrado")
+            raise HttpError(404, "job not found")
         if current.get("onchainStatus") != "OPEN" or current.get("researcherWallet"):
-            raise HttpError(409, "este job não está aceitando candidaturas")
-        raise HttpError(409, "limite de candidaturas atingido")
+            raise HttpError(409, "this job is not accepting applications")
+        raise HttpError(409, "application limit reached")
     log.info("job_application", jobId=job_id, wallet=wallet)
     return ok({"success": True, "applied": True})
 
@@ -270,7 +270,7 @@ def sync(event, context):
     try:
         item = sync_job(job_id, body.get("jobPda"))
     except (ValueError, RpcError) as e:
-        raise HttpError(400, f"falha ao sincronizar: {e}")
+        raise HttpError(400, f"failed to sync: {e}")
     if not item:
-        raise HttpError(404, "job não encontrado on-chain nem no banco")
+        raise HttpError(404, "job not found on-chain or in the database")
     return ok({"success": True, "job": public_view(item)})

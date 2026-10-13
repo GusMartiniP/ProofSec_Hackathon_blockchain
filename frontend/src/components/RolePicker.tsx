@@ -3,13 +3,13 @@
 import { Building2, Search } from "lucide-react";
 import type { Role } from "@/lib/role";
 
-/** Primeiro acesso: escolha da visão. Não é permissão — qualquer carteira pode usar as duas. */
+/** First visit: pick a view. Not a permission — any wallet can use both. */
 export function RolePicker({ onPick }: { onPick: (r: Role) => void }) {
   return (
     <div className="bg-slate-900 border border-slate-800 rounded-2xl p-6 mb-6">
-      <h3 className="text-lg font-bold text-white mb-1">Como você vai usar o ProofSec?</h3>
+      <h3 className="text-lg font-bold text-white mb-1">How will you use ProofSec?</h3>
       <p className="text-sm text-slate-400 mb-4">
-        Você pode trocar a qualquer momento no cabeçalho. Isso muda só o que aparece na tela.
+        You can switch at any time in the header. This only changes what is shown on screen.
       </p>
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
         <button
@@ -17,16 +17,16 @@ export function RolePicker({ onPick }: { onPick: (r: Role) => void }) {
           className="text-left p-4 rounded-xl border border-slate-700 hover:border-solana-purple bg-slate-950 transition-colors"
         >
           <Building2 className="w-5 h-5 text-solana-purple mb-2" />
-          <div className="font-semibold text-white text-sm">Empresa</div>
-          <div className="text-xs text-slate-400">Contratar um pentest: travar USDC, definir o escopo, revisar e aprovar.</div>
+          <div className="font-semibold text-white text-sm">Company</div>
+          <div className="text-xs text-slate-400">Hire a pentest: lock USDC, define the scope, review and approve.</div>
         </button>
         <button
           onClick={() => onPick("researcher")}
           className="text-left p-4 rounded-xl border border-slate-700 hover:border-solana-green bg-slate-950 transition-colors"
         >
           <Search className="w-5 h-5 text-solana-green mb-2" />
-          <div className="font-semibold text-white text-sm">Pesquisador</div>
-          <div className="text-xs text-slate-400">Encontrar vagas, se candidatar, entregar o relatório cifrado e receber.</div>
+          <div className="font-semibold text-white text-sm">Researcher</div>
+          <div className="text-xs text-slate-400">Find open jobs, accept one, deliver the encrypted report and get paid.</div>
         </button>
       </div>
     </div>

@@ -85,9 +85,9 @@ export function canConfigureAgent(role: Role | null): boolean {
   return role === "company";
 }
 
-export const ROLE_LABEL: Record<Role, string> = { company: "Empresa", researcher: "Pesquisador" };
+export const ROLE_LABEL: Record<Role, string> = { company: "Company", researcher: "Researcher" };
 export const VIEW_LABEL: Record<RoleView, Record<Role, string>> = {
-  mine: { company: "Meus escrows", researcher: "Meus trabalhos" },
-  open: { company: "Vagas abertas", researcher: "Vagas abertas" },
-  arbiter: { company: "Disputas (árbitro)", researcher: "Disputas (árbitro)" },
+  mine: { company: "My escrows", researcher: "My jobs" },
+  open: { company: "Open jobs", researcher: "Open jobs" },
+  arbiter: { company: "Disputes (arbiter)", researcher: "Disputes (arbiter)" },
 };

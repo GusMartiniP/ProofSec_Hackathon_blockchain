@@ -36,7 +36,7 @@ export default function Home() {
   const { role, setRole } = useRole(wallet);
   const [pickedView, setPickedView] = useState<RoleView | null>(null);
 
-  // Sem carteira ou sem papel escolhido: lista pública completa, só leitura.
+  // No wallet or no role chosen: full public list, read-only.
   const arbiter = isArbiterAnywhere(jobs, wallet);
   const views = role ? viewsFor(role, arbiter) : [];
   const view: RoleView | null = role ? (pickedView && views.includes(pickedView) ? pickedView : defaultView(role)) : null;
@@ -65,7 +65,7 @@ export default function Home() {
               </span>
               {!HAS_API && (
                 <span className="text-[10px] uppercase font-bold tracking-wider px-2 py-0.5 rounded-full bg-slate-800 text-slate-300">
-                  modo só on-chain
+                  on-chain-only mode
                 </span>
               )}
             </div>
@@ -75,7 +75,7 @@ export default function Home() {
 
         <div className="flex items-center gap-2 flex-wrap justify-center">
           {wallet && role && (
-            <div className="bg-slate-900 p-1 rounded-xl border border-slate-800 flex text-xs font-semibold" role="group" aria-label="Papel">
+            <div className="bg-slate-900 p-1 rounded-xl border border-slate-800 flex text-xs font-semibold" role="group" aria-label="Role">
               {(['company', 'researcher'] as Role[]).map((r) => (
                 <button
                   key={r}
@@ -94,16 +94,16 @@ export default function Home() {
           )}
           {HAS_API && wallet && !loggedIn && (
             <Button variant="ghost" onClick={login}>
-              <LogIn className="w-3.5 h-3.5" /> Entrar (SIWS)
+              <LogIn className="w-3.5 h-3.5" /> Sign in (SIWS)
             </Button>
           )}
           {HAS_API && wallet && loggedIn && (
             <Button
               variant="ghost"
-              title="Gera sua chave de criptografia de relatórios a partir de uma assinatura e publica a parte pública"
-              onClick={() => run('Ativando criptografia de relatórios', async () => (await ensureEncryptionKey()).publicKeyB64)}
+              title="Derives your report encryption key from a signature and publishes the public half"
+              onClick={() => run('Activating report encryption', async () => (await ensureEncryptionKey()).publicKeyB64)}
             >
-              <KeyRound className="w-3.5 h-3.5" /> Ativar criptografia
+              <KeyRound className="w-3.5 h-3.5" /> Activate encryption
             </Button>
           )}
           <WalletMultiButton className="!bg-slate-900 !border !border-slate-700 !rounded-xl !text-xs !font-semibold !h-10 hover:!bg-slate-800" />
@@ -113,20 +113,20 @@ export default function Home() {
       <section className="py-8 grid grid-cols-1 md:grid-cols-3 gap-6">
         <div className="md:col-span-2 bg-gradient-to-br from-slate-900 via-slate-900/90 to-slate-950 p-6 rounded-2xl border border-slate-800">
           <span className="inline-flex items-center gap-1.5 text-xs font-medium text-solana-green bg-solana-green/10 px-2.5 py-1 rounded-full mb-3">
-            <Coins className="w-3.5 h-3.5" /> USDC travado on-chain · liberação otimista · disputa com árbitro
+            <Coins className="w-3.5 h-3.5" /> USDC locked on-chain · optimistic release · arbiter-backed disputes
           </span>
-          <h2 className="text-2xl font-bold text-white mb-2">Auditorias técnicas sem assimetria de confiança</h2>
+          <h2 className="text-2xl font-bold text-white mb-2">Security audits without trust asymmetry</h2>
           <p className="text-sm text-slate-400 max-w-xl leading-relaxed">
-            O cliente trava USDC e registra on-chain o hash do escopo autorizado. O pesquisador entrega o relatório cifrado
-            e grava o SHA-256 dele na Solana. O cliente aprova ou contesta dentro da janela de revisão — se ficar em
-            silêncio, o pagamento é liberado. A IA propõe; a chain impõe os limites de gasto.
+            The client locks USDC and records the hash of the authorized scope on-chain. The researcher delivers the
+            encrypted report and records its SHA-256 on Solana. The client approves or disputes within the review
+            window — if they stay silent, payment is released. The AI proposes; the chain enforces the spending limits.
           </p>
         </div>
         <div className="bg-slate-900 p-6 rounded-2xl border border-slate-800 grid grid-cols-2 gap-4 content-center">
           <Stat label="Jobs on-chain" value={String(jobs.length)} />
-          <Stat label="USDC em escrow" value={(locked / 1_000_000).toLocaleString('pt-BR')} />
-          <Stat label="Taxa da plataforma" value={config ? `${config.feeBps / 100}%` : '—'} />
-          <Stat label="Em revisão" value={String(jobs.filter((j) => j.status === 'EVIDENCE_SUBMITTED').length)} />
+          <Stat label="USDC in escrow" value={(locked / 1_000_000).toLocaleString('en-US')} />
+          <Stat label="Platform fee" value={config ? `${config.feeBps / 100}%` : '—'} />
+          <Stat label="In review" value={String(jobs.filter((j) => j.status === 'EVIDENCE_SUBMITTED').length)} />
         </div>
       </section>
 
@@ -155,17 +155,17 @@ export default function Home() {
                   </button>
                 ))
               ) : (
-                <span className="px-3 py-1.5 text-slate-400">Todos os escrows</span>
+                <span className="px-3 py-1.5 text-slate-400">All escrows</span>
               )}
             </div>
             <button onClick={refresh} className="text-xs text-slate-400 hover:text-white inline-flex items-center gap-1.5">
-              <RefreshCw className={`w-3.5 h-3.5 ${loading ? 'animate-spin' : ''}`} /> Atualizar
+              <RefreshCw className={`w-3.5 h-3.5 ${loading ? 'animate-spin' : ''}`} /> Refresh
             </button>
           </div>
 
           {visible.length === 0 && (
             <div className="border border-dashed border-slate-800 rounded-xl p-8 text-center text-sm text-slate-500">
-              {loading ? 'Lendo a chain…' : 'Nenhum escrow por aqui ainda.'}
+              {loading ? 'Reading the chain…' : 'No escrows here yet.'}
             </div>
           )}
           {visible.map((job) => (
@@ -180,21 +180,21 @@ export default function Home() {
               {canConfigureAgent(role) && <AgentPanel />}
               {role === 'researcher' && (
                 <div className="bg-slate-900 border border-slate-800 rounded-xl p-5 text-sm text-slate-400 space-y-2">
-                  <div className="font-semibold text-white">Para entregar relatórios</div>
+                  <div className="font-semibold text-white">To deliver reports</div>
                   <p>
-                    1. Entre (SIWS) e use <span className="text-slate-200">Ativar criptografia</span> uma vez.
+                    1. Sign in (SIWS) and use <span className="text-slate-200">Activate encryption</span> once.
                     <br />
-                    2. Candidate-se a uma vaga aberta e aguarde a atribuição do cliente.
+                    2. Apply to an open job and wait for the client to assign you.
                     <br />
-                    3. Aceite o job, envie o relatório cifrado e acompanhe a janela de revisão.
+                    3. Accept the job, upload the encrypted report and follow the review window.
                   </p>
                 </div>
               )}
             </>
           ) : wallet ? null : (
             <div className="bg-slate-900 border border-slate-800 rounded-xl p-5 text-sm text-slate-400">
-              Conecte sua carteira (Phantom, Solflare, Backpack…) na devnet para criar escrows, aceitar jobs ou configurar o
-              agente.
+              Connect your wallet (Phantom, Solflare, Backpack…) on devnet to create escrows, accept jobs or configure the
+              agent.
             </div>
           )}
         </aside>

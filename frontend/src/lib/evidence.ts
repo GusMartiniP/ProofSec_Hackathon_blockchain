@@ -140,7 +140,7 @@ export async function encryptReport(
 
 function parseEnvelope(blob: Uint8Array): Envelope {
   const env = JSON.parse(new TextDecoder().decode(blob)) as Envelope;
-  if (env.v !== 1 || !Array.isArray(env.recipients)) throw new Error("versão de envelope desconhecida");
+  if (env.v !== 1 || !Array.isArray(env.recipients)) throw new Error("unknown envelope version");
   return env;
 }
 
@@ -155,17 +155,17 @@ export async function decryptReport(
 ): Promise<{ file: Blob; fileName: string; plainSha256: string }> {
   const env = parseEnvelope(blob);
   const mine = env.recipients.find((r) => r.recipientPub === keypair.publicKeyB64);
-  if (!mine) throw new Error("este relatório não foi cifrado para a sua chave");
+  if (!mine) throw new Error("this report was not encrypted to your key");
   const dataKey = nacl.box.open(
     base64ToBytes(mine.wrappedKey),
     base64ToBytes(mine.nonce),
     base64ToBytes(mine.ephemeralPub),
     keypair.secretKey
   );
-  if (!dataKey) throw new Error("falha ao abrir a chave do relatório");
+  if (!dataKey) throw new Error("failed to unwrap the report key");
   const plain = nacl.secretbox.open(base64ToBytes(env.ciphertext), base64ToBytes(env.nonce), dataKey);
-  if (!plain) throw new Error("falha ao decifrar o relatório");
+  if (!plain) throw new Error("failed to decrypt the report");
   const plainSha = await sha256Hex(plain);
-  if (plainSha !== env.plainSha256) throw new Error("hash do conteúdo decifrado não confere");
+  if (plainSha !== env.plainSha256) throw new Error("decrypted content hash does not match");
   return { file: new Blob([toArrayBuffer(plain)], { type: env.mime }), fileName: env.fileName, plainSha256: plainSha };
 }

@@ -51,26 +51,26 @@ class HttpError(Exception):
 def parse_body(event) -> dict:
     raw = event.get("body") or "{}"
     if not isinstance(raw, (str, bytes, bytearray)):
-        raise HttpError(400, "corpo deve ser JSON textual")
+        raise HttpError(400, "body must be textual JSON")
     if event.get("isBase64Encoded"):
         import base64
         try:
             raw = base64.b64decode(raw, validate=True).decode("utf-8")
         except (TypeError, ValueError, UnicodeError):
-            raise HttpError(400, "corpo base64 inválido")
+            raise HttpError(400, "invalid base64 body")
     try:
         body = json.loads(raw)
     except (ValueError, RecursionError):  # JSONDecodeError, UnicodeError e o limite de dígitos de int
-        raise HttpError(400, "JSON inválido")
+        raise HttpError(400, "invalid JSON")
     if not isinstance(body, dict):
-        raise HttpError(400, "corpo deve ser um objeto JSON")
+        raise HttpError(400, "body must be a JSON object")
     return body
 
 
 def path_param(event, name: str) -> str:
     value = (event.get("pathParameters") or {}).get(name)
     if not value:
-        raise HttpError(400, f"parâmetro de rota ausente: {name}")
+        raise HttpError(400, f"missing route parameter: {name}")
     return value
 
 
@@ -88,7 +88,7 @@ def auth_wallet(event) -> str:
     ctx = (event.get("requestContext") or {}).get("authorizer") or {}
     wallet = (ctx.get("lambda") or {}).get("wallet")
     if not wallet:
-        raise HttpError(401, "não autenticado")
+        raise HttpError(401, "not authenticated")
     return wallet
 
 
@@ -104,7 +104,7 @@ def handler(fn):
             ctx = (event or {}).get("requestContext") or {}
             log.error("unhandled", handler=fn.__name__, error=type(e).__name__, detail=str(e)[:300],
                       requestId=ctx.get("requestId"))
-            return error(500, "erro interno")
+            return error(500, "internal error")
 
     wrapped.__name__ = fn.__name__
     return wrapped

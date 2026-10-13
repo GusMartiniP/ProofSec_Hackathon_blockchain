@@ -165,13 +165,13 @@ def _require_agent_key(event):
         expected = get_secret("AGENT_API_KEY_PARAM", "AGENT_API_KEY")
     except Exception as e:  # noqa: BLE001
         log.error("agent_key_unavailable", error=type(e).__name__)
-        raise HttpError(500, "configuração do agente indisponível")
+        raise HttpError(500, "agent configuration unavailable")
     if len(expected) < 32:
         log.error("agent_key_misconfigured", reason="too_short")
-        raise HttpError(500, "configuração do agente indisponível")
+        raise HttpError(500, "agent configuration unavailable")
     if not hmac.compare_digest(key.encode(), expected.encode()):
         log.warning("agent_key_rejected")
-        raise HttpError(401, "x-agent-key inválida")
+        raise HttpError(401, "invalid x-agent-key")
 
 
 def on_event(event, context):
@@ -240,7 +240,7 @@ def propose(event, context):
         if j.get("createdByAgent") and int(j.get("createdAt") or 0) > hour_ago
     ]
     if len(recent) >= PROPOSE_QUOTA_PER_HOUR:
-        raise HttpError(429, "limite de alertas simulados por hora atingido")
+        raise HttpError(429, "hourly limit of simulated alerts reached")
     finding = normalize_finding(
         {
             "source": "demo",
@@ -267,7 +267,7 @@ def list_proposals(event, context):
     _require_agent_key(event)
     status = query_param(event, "status", "AUTO_APPROVED")
     if status not in {"AUTO_APPROVED", "NEEDS_HUMAN"}:
-        raise HttpError(400, "status inválido")
+        raise HttpError(400, "invalid status")
     return ok({"success": True, "proposals": db.list_jobs_by_status(status)})
 
 
@@ -278,7 +278,7 @@ def mark_executed(event, context):
     job_id = path_param(event, "jobId")
     body = parse_body(event)
     if not is_pubkey(body.get("jobPda")):
-        raise HttpError(400, "jobPda inválido")
+        raise HttpError(400, "invalid jobPda")
     item = sync_job(job_id, body["jobPda"])
     if item and body.get("signature"):
         item = db.put_job({**item, "fundingSignature": str(body["signature"])[:128]})
@@ -298,9 +298,9 @@ def mark_rejected(event, context):
     reason = str(parse_body(event).get("reason") or "recusada pelo executor")[:300]
     item = db.get_job(job_id)
     if not item:
-        raise HttpError(404, "proposta não encontrada")
+        raise HttpError(404, "proposal not found")
     if item.get("status") != "AUTO_APPROVED":
-        raise HttpError(409, "a proposta não está aguardando o executor")
+        raise HttpError(409, "the proposal is not waiting for the executor")
     item = db.put_job({**item, "status": "NEEDS_HUMAN", "agentDecision": f"Executor recusou: {reason}"})
     alerts.alert(
         "Proposta do agente recusada pelo executor",

@@ -16,14 +16,14 @@ export function jobMint(config: PlatformConfig | null): PublicKey {
   return config && config.allowedMint !== PublicKey.default.toBase58() ? new PublicKey(config.allowedMint) : USDC_MINT;
 }
 
-/** Cria o escrow on-chain a partir de um rascunho/proposta do backend. */
+/** Creates the on-chain escrow from a backend draft/proposal. */
 export async function fundFromMeta(
   program: Program<Idl>,
   meta: JobMeta,
   config: PlatformConfig | null,
   expected?: ExpectedDraft
 ) {
-  // O backend não decide o que o usuário financia: confere antes de pedir a assinatura
+  // The backend does not decide what the user funds: verify before asking for a signature
   await assertMetaIntegrity(meta, program.provider.publicKey!.toBase58(), expected);
   const now = Math.floor(Date.now() / 1000);
   const sig = await createJobOnchain(program, {
@@ -42,8 +42,8 @@ export async function fundFromMeta(
 
 export function CreateJobPanel() {
   const { program, wallet, config, run, login } = useProofSec();
-  const [title, setTitle] = useState("Pentest de API e autenticação");
-  const [scope, setScope] = useState("api.empresa.com, app.empresa.com/login");
+  const [title, setTitle] = useState("API and authentication pentest");
+  const [scope, setScope] = useState("api.company.com, app.company.com/login");
   const [budget, setBudget] = useState("350");
   const [days, setDays] = useState("7");
   const [reviewHours, setReviewHours] = useState("72");
@@ -52,14 +52,14 @@ export function CreateJobPanel() {
 
   const submit = async () => {
     if (researcher && !isPubkey(researcher)) {
-      return run("Validação", async () => {
-        throw new Error("pubkey do pesquisador inválida");
+      return run("Validation", async () => {
+        throw new Error("invalid researcher pubkey");
       });
     }
     setBusy(true);
-    await run("Criando escrow", async () => {
+    await run("Creating escrow", async () => {
       if (HAS_API) {
-        if (!(await login())) throw new Error("login necessário");
+        if (!(await login())) throw new Error("login required");
         const meta = await api.createDraft({
           title,
           scope,
@@ -75,7 +75,7 @@ export function CreateJobPanel() {
           researcher: researcher || null,
         });
       }
-      // Modo só on-chain: o documento de escopo é montado e hasheado no navegador
+      // On-chain-only mode: the scope document is built and hashed in the browser
       const jobId = randomJobId();
       const doc = {
         version: 1,
@@ -105,28 +105,28 @@ export function CreateJobPanel() {
 
   return (
     <Card>
-      <SectionTitle icon={<FilePlus2 className="w-4 h-4 text-solana-purple" />}>Novo escrow de pentest</SectionTitle>
+      <SectionTitle icon={<FilePlus2 className="w-4 h-4 text-solana-purple" />}>New pentest escrow</SectionTitle>
       <div className="space-y-3">
-        <Field label="Título" value={title} onChange={(e) => setTitle(e.target.value)} />
-        <TextArea label="Escopo (alvos separados por vírgula)" rows={2} value={scope} onChange={(e) => setScope(e.target.value)} />
+        <Field label="Title" value={title} onChange={(e) => setTitle(e.target.value)} />
+        <TextArea label="Scope (targets separated by commas)" rows={2} value={scope} onChange={(e) => setScope(e.target.value)} />
         <div className="grid grid-cols-3 gap-2">
           <Field label="USDC" type="number" min="1" value={budget} onChange={(e) => setBudget(e.target.value)} />
-          <Field label="Prazo (dias)" type="number" min="1" max="180" value={days} onChange={(e) => setDays(e.target.value)} />
-          <Field label="Revisão (h)" type="number" min="0.02" step="0.01" value={reviewHours} onChange={(e) => setReviewHours(e.target.value)} />
+          <Field label="Deadline (days)" type="number" min="1" max="180" value={days} onChange={(e) => setDays(e.target.value)} />
+          <Field label="Review (h)" type="number" min="0.02" step="0.01" value={reviewHours} onChange={(e) => setReviewHours(e.target.value)} />
         </div>
         <Field
-          label="Pesquisador (opcional)"
-          hint="O aceite exige atribuição (PS-01). Vazio = pesquisadores se candidatam e você escolhe depois."
+          label="Researcher (optional)"
+          hint="Accepting requires an assignment (PS-01). Empty = researchers apply and you choose later."
           placeholder="pubkey"
           value={researcher}
           onChange={(e) => setResearcher(e.target.value.trim())}
         />
         <p className="text-[11px] text-slate-500">
-          O SHA-256 do escopo + regras de engajamento vai on-chain como autorização formal de teste.
-          Após a evidência, o cliente tem a janela de revisão para aprovar ou contestar; sem resposta, o pagamento é liberado.
+          The SHA-256 of the scope + rules of engagement goes on-chain as the formal testing authorization.
+          After the evidence is submitted, the client has the review window to approve or dispute; with no response, payment is released.
         </p>
         <Button onClick={submit} busy={busy} disabled={!wallet || !config} className="w-full">
-          Assinar e travar {budget || 0} USDC
+          Sign and lock {budget || 0} USDC
         </Button>
       </div>
     </Card>

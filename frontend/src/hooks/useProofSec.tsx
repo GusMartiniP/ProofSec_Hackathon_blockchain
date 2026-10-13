@@ -35,7 +35,7 @@ interface Ctx {
   config: PlatformConfig | null;
   configLoaded: boolean;
   jobs: JobView[];
-  offchain: JobMeta[]; // drafts e propostas do agente que ainda não estão on-chain
+  offchain: JobMeta[]; // drafts and agent proposals not yet on-chain
   loading: boolean;
   refresh: () => Promise<void>;
   loggedIn: boolean;
@@ -44,7 +44,7 @@ interface Ctx {
   ensureEncryptionKey: () => Promise<EncryptionKeypair>;
   notice: Notice | null;
   notify: (n: Notice | null) => void;
-  /** Executa uma ação com feedback padronizado. Retorna o resultado ou null em erro. */
+  /** Runs an action with standard feedback. Returns the result, or null on error. */
   run: <T>(label: string, fn: () => Promise<T>, opts?: { txFrom?: (r: T) => string | undefined }) => Promise<T | null>;
   now: number;
 }
@@ -92,14 +92,14 @@ export function ProofSecProvider({ children }: { children: React.ReactNode }) {
         try {
           const [publicList, mine] = await Promise.all([
             api.listJobs(),
-            // Rascunhos/propostas só vêm com sessão autenticada (endpoint privado)
+            // Drafts/proposals only come with an authenticated session (private endpoint)
             wallet && currentSession(wallet) ? api.myJobs() : Promise.resolve([] as JobMeta[]),
           ]);
           const byId = new Map<string, JobMeta>();
           [...publicList, ...mine].forEach((j) => byId.set(j.jobId, j));
           metas = Array.from(byId.values());
         } catch (e) {
-          console.warn("API indisponível, usando só dados on-chain:", e);
+          console.warn("API unavailable, using on-chain data only:", e);
         }
       }
       const metaByKey = new Map(metas.map((mt) => [`${mt.clientWallet}:${mt.jobId}`, mt]));
@@ -118,7 +118,7 @@ export function ProofSecProvider({ children }: { children: React.ReactNode }) {
       );
     } catch (e) {
       setConfigLoaded(true);
-      notify({ kind: "error", text: `Falha ao ler a chain: ${friendlyError(e)}` });
+      notify({ kind: "error", text: `Failed to read the chain: ${friendlyError(e)}` });
     } finally {
       setLoading(false);
     }
@@ -131,7 +131,7 @@ export function ProofSecProvider({ children }: { children: React.ReactNode }) {
   const login = useCallback(async () => {
     if (!HAS_API) return false;
     if (!wallet || !signMessage) {
-      notify({ kind: "error", text: "Conecte uma carteira que suporte assinatura de mensagens." });
+      notify({ kind: "error", text: "Connect a wallet that supports message signing." });
       return false;
     }
     if (currentSession(wallet)) return true;
@@ -140,7 +140,7 @@ export function ProofSecProvider({ children }: { children: React.ReactNode }) {
       setLoggedIn(true);
       return true;
     } catch (e) {
-      notify({ kind: "error", text: `Login falhou: ${friendlyError(e)}` });
+      notify({ kind: "error", text: `Login failed: ${friendlyError(e)}` });
       return false;
     }
   }, [wallet, signMessage]);
@@ -151,7 +151,7 @@ export function ProofSecProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   const ensureEncryptionKey = useCallback(async () => {
-    if (!wallet || !signMessage) throw new Error("conecte a carteira");
+    if (!wallet || !signMessage) throw new Error("connect your wallet");
     const kp = await deriveEncryptionKeypair(wallet, signMessage);
     if (HAS_API) {
       let published: string | null = null;
@@ -161,8 +161,8 @@ export function ProofSecProvider({ children }: { children: React.ReactNode }) {
         published = null;
       }
       if (published !== kp.publicKeyB64) {
-        if (!(await login())) throw new Error("login necessário para publicar a chave");
-        // Prova de posse (PS-38): quem cifrar para esta carteira confere esta assinatura
+        if (!(await login())) throw new Error("login required to publish the key");
+        // Proof of possession (PS-38): whoever encrypts to this wallet checks this signature
         const proof = await signMessage(new TextEncoder().encode(keyBindingMessage(wallet, kp.publicKeyB64)));
         await api.putEncryptionKey(kp.publicKeyB64, bs58.encode(proof));
       }
@@ -177,7 +177,7 @@ export function ProofSecProvider({ children }: { children: React.ReactNode }) {
         const r = await fn();
         const isSig = (v: unknown) => typeof v === "string" && /^[1-9A-HJ-NP-Za-km-z]{80,90}$/.test(v);
         const tx = opts?.txFrom ? opts.txFrom(r) : isSig(r) ? (r as string) : undefined;
-        notify({ kind: "success", text: `${label}: concluído.`, tx });
+        notify({ kind: "success", text: `${label}: done.`, tx });
         refresh();
         return r;
       } catch (e) {
@@ -213,6 +213,6 @@ export function ProofSecProvider({ children }: { children: React.ReactNode }) {
 
 export function useProofSec() {
   const ctx = useContext(ProofSecContext);
-  if (!ctx) throw new Error("useProofSec fora do ProofSecProvider");
+  if (!ctx) throw new Error("useProofSec used outside ProofSecProvider");
   return ctx;
 }

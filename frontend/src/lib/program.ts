@@ -106,10 +106,10 @@ export function getReadonlyProgram(connection: Connection): Program<Idl> {
   const dummy = {
     publicKey: PublicKey.default,
     signTransaction: async () => {
-      throw new Error("carteira não conectada");
+      throw new Error("wallet not connected");
     },
     signAllTransactions: async () => {
-      throw new Error("carteira não conectada");
+      throw new Error("wallet not connected");
     },
   } as unknown as AnchorWallet;
   return getProgram(connection, dummy);
@@ -277,7 +277,7 @@ export async function submitEvidence(program: Program<Idl>, job: OnchainJob, sha
  * `config` só é usado para a conta `config` das instruções.
  */
 function settleBase(job: OnchainJob, _config: PlatformConfig) {
-  if (!job.researcher) throw new Error("job sem pesquisador");
+  if (!job.researcher) throw new Error("job has no researcher");
   const mint = new PublicKey(job.mint);
   const researcher = new PublicKey(job.researcher);
   const treasury = new PublicKey(job.treasury);
@@ -441,10 +441,10 @@ export async function setAgentPolicy(
 
 export function friendlyError(e: unknown): string {
   const msg = (e as any)?.error?.errorMessage || (e as any)?.message || String(e);
-  if (/User rejected/i.test(msg)) return "Transação cancelada na carteira.";
-  if (/insufficient funds|0x1\b/i.test(msg)) return "Saldo insuficiente (SOL para taxas ou USDC).";
-  if (/AccountNotInitialized|could not find account/i.test(msg)) return "Conta não encontrada on-chain (USDC/ATA ou config).";
-  if (/Blockhash not found|block height exceeded/i.test(msg)) return "A transação expirou antes de confirmar. Assine de novo.";
+  if (/User rejected/i.test(msg)) return "Transaction cancelled in the wallet.";
+  if (/insufficient funds|0x1\b/i.test(msg)) return "Insufficient balance (SOL for fees or USDC).";
+  if (/AccountNotInitialized|could not find account/i.test(msg)) return "Account not found on-chain (USDC/ATA or config).";
+  if (/Blockhash not found|block height exceeded/i.test(msg)) return "The transaction expired before confirming. Please sign again.";
   return msg.length > 220 ? msg.slice(0, 220) + "…" : msg;
 }
 

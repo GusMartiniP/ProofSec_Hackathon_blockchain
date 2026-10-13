@@ -21,7 +21,7 @@ export function NoticeBar() {
         <p>{notice.text}</p>
         {notice.tx && <TxLink sig={notice.tx} />}
       </div>
-      <button onClick={() => notify(null)} aria-label="Fechar" className="opacity-70 hover:opacity-100">
+      <button onClick={() => notify(null)} aria-label="Close" className="opacity-70 hover:opacity-100">
         <X className="w-4 h-4" />
       </button>
     </div>

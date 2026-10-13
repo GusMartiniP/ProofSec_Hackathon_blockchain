@@ -40,7 +40,7 @@ export function AgentPanel() {
 
   const savePolicy = async (active: boolean) => {
     setBusy("policy");
-    await run(active ? "Salvando política do agente" : "Desativando agente", () =>
+    await run(active ? "Saving agent policy" : "Deactivating agent", () =>
       setAgentPolicy(program, {
         agent: new PublicKey(agent),
         maxPerJobBase: usdcToBase(Number(maxJob)),
@@ -57,8 +57,8 @@ export function AgentPanel() {
 
   const simulate = async () => {
     setBusy("scan");
-    await run("Agente analisando alerta", async () => {
-      if (!(await login())) throw new Error("login necessário");
+    await run("Agent analyzing alert", async () => {
+      if (!(await login())) throw new Error("login required");
       const job = await api.agentPropose({
         severity: Number(severity),
         target_asset: "assets.company.io/v2",
@@ -74,20 +74,20 @@ export function AgentPanel() {
   return (
     <div className="space-y-4">
       <Card>
-        <SectionTitle icon={<Lock className="w-4 h-4 text-solana-purple" />}>Política do agente (on-chain)</SectionTitle>
+        <SectionTitle icon={<Lock className="w-4 h-4 text-solana-purple" />}>Agent policy (on-chain)</SectionTitle>
         {policy ? (
           <div className="mb-4 space-y-2 text-xs">
             <div className="flex justify-between">
-              <span className="text-slate-400">Agente</span>
+              <span className="text-slate-400">Agent</span>
               <AddressLink address={policy.agent} />
             </div>
             <div className="flex justify-between">
               <span className="text-slate-400">Status</span>
-              <span className={policy.active ? "text-solana-green" : "text-red-300"}>{policy.active ? "ativo" : "inativo"}</span>
+              <span className={policy.active ? "text-solana-green" : "text-red-300"}>{policy.active ? "active" : "inactive"}</span>
             </div>
             <div>
               <div className="flex justify-between text-slate-400">
-                <span>Gasto no período</span>
+                <span>Spent in period</span>
                 <span>
                   {baseToUsdc(policy.spentInPeriod)} / {baseToUsdc(policy.maxPerPeriod)} USDC
                 </span>
@@ -99,35 +99,35 @@ export function AgentPanel() {
           </div>
         ) : (
           <p className="text-xs text-slate-400 mb-4">
-            Nenhuma política ainda. A chave do agente só consegue abrir escrows dentro destes limites — imposto pelo programa,
-            não pelo backend nem pela IA.
+            No policy yet. The agent key can only open escrows within these limits — enforced by the program,
+            not by the backend or the AI.
           </p>
         )}
         <div className="space-y-3">
-          <Field label="Pubkey do agente" placeholder="npm run keygen em /agent (ou a chave do SSM, na Lambda)" value={agent} onChange={(e) => setAgent(e.target.value.trim())} />
+          <Field label="Agent pubkey" placeholder="npm run keygen in /agent (or the SSM key, on Lambda)" value={agent} onChange={(e) => setAgent(e.target.value.trim())} />
           <div className="grid grid-cols-3 gap-2">
-            <Field label="Máx/job" type="number" value={maxJob} onChange={(e) => setMaxJob(e.target.value)} />
-            <Field label="Máx/período" type="number" value={maxPeriod} onChange={(e) => setMaxPeriod(e.target.value)} />
-            <Field label="Período (h)" type="number" value={periodHours} onChange={(e) => setPeriodHours(e.target.value)} />
+            <Field label="Max/job" type="number" value={maxJob} onChange={(e) => setMaxJob(e.target.value)} />
+            <Field label="Max/period" type="number" value={maxPeriod} onChange={(e) => setMaxPeriod(e.target.value)} />
+            <Field label="Period (h)" type="number" value={periodHours} onChange={(e) => setPeriodHours(e.target.value)} />
           </div>
           <Field
             label="Allowance (USDC)"
-            hint="Quanto o PDA da política pode movimentar da sua conta (spl-token approve)"
+            hint="How much the policy PDA can move from your account (spl-token approve)"
             type="number"
             value={allowance}
             onChange={(e) => setAllowance(e.target.value)}
           />
           <p className="text-[10px] text-amber-300/80">
-            Atenção: o SPL Token aceita um só delegate por conta. Aprovar o PDA da política substitui qualquer delegate
-            anterior da sua conta de USDC (PS-15). Jobs do agente nascem sem pesquisador: você atribui, e a revisão mínima é 72 h.
+            Note: SPL Token accepts only one delegate per account. Approving the policy PDA replaces any previous delegate
+            on your USDC account (PS-15). Agent jobs are created without a researcher: you assign one, and the minimum review period is 72 h.
           </p>
           <div className="flex gap-2">
             <Button className="flex-1" busy={busy === "policy"} disabled={!wallet || !agent} onClick={() => savePolicy(true)}>
-              Salvar política + allowance
+              Save policy + allowance
             </Button>
             {policy?.active && (
               <Button variant="danger" busy={busy === "policy"} onClick={() => savePolicy(false)}>
-                Desativar
+                Deactivate
               </Button>
             )}
           </div>
@@ -136,21 +136,21 @@ export function AgentPanel() {
 
       {HAS_API && (
         <Card>
-          <SectionTitle icon={<Bot className="w-4 h-4 text-solana-green" />}>Agente de IA</SectionTitle>
+          <SectionTitle icon={<Bot className="w-4 h-4 text-solana-green" />}>AI agent</SectionTitle>
           <p className="text-xs text-slate-400 mb-3">
-            Em produção os alertas chegam do GuardDuty/Security Hub via EventBridge. Aqui você simula um.
-            A severidade define o orçamento (tabela determinística); a IA só redige o escopo.
+            In production, alerts arrive from GuardDuty/Security Hub via EventBridge. Here you simulate one.
+            Severity sets the budget (deterministic table); the AI only drafts the scope.
           </p>
           <div className="flex items-end gap-2">
-            <Field label="Severidade (0-10)" type="number" min="0" max="10" step="0.5" value={severity} onChange={(e) => setSeverity(e.target.value)} />
+            <Field label="Severity (0-10)" type="number" min="0" max="10" step="0.5" value={severity} onChange={(e) => setSeverity(e.target.value)} />
             <Button busy={busy === "scan"} disabled={!wallet} onClick={simulate}>
-              <Cpu className="w-3.5 h-3.5" /> Simular alerta
+              <Cpu className="w-3.5 h-3.5" /> Simulate alert
             </Button>
           </div>
 
           {offchain.length > 0 && (
             <div className="mt-4 space-y-2">
-              <span className="text-[11px] uppercase tracking-wider text-slate-500 font-bold">Propostas e rascunhos</span>
+              <span className="text-[11px] uppercase tracking-wider text-slate-500 font-bold">Proposals and drafts</span>
               {offchain.map((p) => (
                 <div key={p.jobId} className="bg-slate-950 border border-slate-800 rounded-lg p-3 text-xs space-y-1.5">
                   <div className="flex justify-between gap-2">
@@ -169,16 +169,16 @@ export function AgentPanel() {
                       busy={busy === p.jobId}
                       onClick={async () => {
                         setBusy(p.jobId);
-                        await run("Financiando proposta", () => fundFromMeta(program, p, config));
+                        await run("Funding proposal", () => fundFromMeta(program, p, config));
                         setBusy(null);
                         refresh();
                       }}
                     >
-                      Assinar e financiar no Phantom
+                      Sign and fund in Phantom
                     </Button>
                   )}
                   {p.status === "AUTO_APPROVED" && (
-                    <p className="text-[11px] text-purple-300">Aguardando o executor do agente abrir o escrow on-chain.</p>
+                    <p className="text-[11px] text-purple-300">Waiting for the agent executor to open the on-chain escrow.</p>
                   )}
                 </div>
               ))}

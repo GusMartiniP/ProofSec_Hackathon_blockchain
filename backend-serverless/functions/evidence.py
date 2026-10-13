@@ -44,7 +44,7 @@ s3 = _s3_client()
 def _fresh_job(job_id: str) -> dict:
     item = db.get_job(job_id)
     if not item:
-        raise HttpError(404, "job não encontrado")
+        raise HttpError(404, "job not found")
     if item.get("jobPda"):
         item = sync_job(job_id) or item
     return item
@@ -58,24 +58,24 @@ def upload_url(event, context):
     job_id = body.get("jobId")
     sha_value = body.get("sha256Hex")
     if not isinstance(sha_value, str):
-        raise HttpError(400, "sha256Hex (64 hex) é obrigatório")
+        raise HttpError(400, "sha256Hex (64 hex characters) is required")
     sha_hex = sha_value.lower()
     size = body.get("sizeBytes")
     if isinstance(size, bool) or not isinstance(size, int):
-        raise HttpError(400, "sizeBytes deve ser um número inteiro")
+        raise HttpError(400, "sizeBytes must be an integer")
 
     if not isinstance(job_id, str) or not re.fullmatch(r"[a-z0-9]{1,32}", job_id):
-        raise HttpError(400, "jobId inválido")
+        raise HttpError(400, "invalid jobId")
     if not re.fullmatch(r"[0-9a-f]{64}", sha_hex):
-        raise HttpError(400, "sha256Hex (64 hex) é obrigatório")
+        raise HttpError(400, "sha256Hex (64 hex characters) is required")
     if not (0 < size <= MAX_SIZE):
-        raise HttpError(400, "arquivo vazio ou maior que 50 MB")
+        raise HttpError(400, "file is empty or larger than 50 MB")
 
     item = _fresh_job(job_id)
     if item.get("onchainStatus") != "IN_PROGRESS":
-        raise HttpError(409, "o job precisa estar IN_PROGRESS on-chain")
+        raise HttpError(409, "the job must be IN_PROGRESS on-chain")
     if item.get("researcherWallet") != wallet:
-        raise HttpError(403, "apenas o pesquisador vinculado on-chain pode enviar evidência")
+        raise HttpError(403, "only the researcher linked on-chain can submit evidence")
 
     key = evidence_key(job_id, sha_hex)
     checksum_b64 = base64.b64encode(bytes.fromhex(sha_hex)).decode()
@@ -109,17 +109,17 @@ def download_url(event, context):
     wallet = auth_wallet(event)
     job_id = parse_body(event).get("jobId")
     if not isinstance(job_id, str) or not re.fullmatch(r"[a-z0-9]{1,32}", job_id):
-        raise HttpError(400, "jobId inválido")
+        raise HttpError(400, "invalid jobId")
 
     item = _fresh_job(job_id)
     # Árbitro = o congelado no job on-chain (PS-04), não uma variável de ambiente
     allowed = {item.get("clientWallet"), item.get("researcherWallet"), item.get("arbiterWallet")} - {None, ""}
     if wallet not in allowed:
         log.warning("evidence_download_denied", jobId=job_id, wallet=wallet)
-        raise HttpError(403, "sem permissão para esta evidência")
+        raise HttpError(403, "no permission for this evidence")
     sha_hex = item.get("evidenceSha256")
     if not sha_hex:
-        raise HttpError(409, "nenhuma evidência registrada on-chain para este job")
+        raise HttpError(409, "no evidence recorded on-chain for this job")
 
     key = evidence_key(job_id, sha_hex)  # a chave vem do hash on-chain, não do usuário
     try:
@@ -127,9 +127,9 @@ def download_url(event, context):
     except Exception as e:  # noqa: BLE001 - botocore e fakes locais usam tipos diferentes
         code = str((getattr(e, "response", {}) or {}).get("Error", {}).get("Code", ""))
         if code in {"404", "NoSuchKey", "NotFound"} or str(e) == "404":
-            raise HttpError(404, "arquivo da evidência ainda não está no S3")
+            raise HttpError(404, "the evidence file is not in S3 yet")
         log.error("evidence_head_failed", jobId=job_id, error=type(e).__name__)
-        raise HttpError(503, "armazenamento de evidências temporariamente indisponível")
+        raise HttpError(503, "evidence storage temporarily unavailable")
     url = s3.generate_presigned_url("get_object", Params={"Bucket": BUCKET, "Key": key}, ExpiresIn=600)
     return ok({"success": True, "downloadUrl": url, "evidenceSha256": sha_hex})
 

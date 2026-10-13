@@ -13,7 +13,7 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="pt-BR">
+    <html lang="en">
       <body className="bg-slate-950 text-slate-100 min-h-screen">
         <WalletContextProvider>
           {children}

@@ -2,11 +2,11 @@ import bs58 from "bs58";
 import { API_URL, HAS_API } from "./config";
 import { verifyKeyBinding } from "./keybinding";
 
-/** Metadados off-chain de um job (DynamoDB). A chain continua sendo a fonte da verdade. */
+/** Off-chain job metadata (DynamoDB). The chain remains the source of truth. */
 export interface JobMeta {
   jobId: string;
   title: string;
-  scopeDocument?: string; // JSON canônico (o SHA-256 dele é o scope_hash on-chain)
+  scopeDocument?: string; // canonical JSON (its SHA-256 is the on-chain scope_hash)
   scopeHash: string;
   budgetUsdc: string;
   amountBase: number;
@@ -22,7 +22,7 @@ export interface JobMeta {
   severity?: string;
   agentDecision?: string;
   createdAt?: number;
-  /** Candidaturas (só o cliente do job recebe, via /jobs/mine). */
+  /** Applications (only the job's client receives them, via /jobs/mine). */
   applicants?: string[];
 }
 
@@ -35,7 +35,7 @@ function loadSession() {
     const raw = sessionStorage.getItem(TOKEN_KEY);
     if (raw) session = JSON.parse(raw);
   } catch {
-    /* storage indisponível: segue só em memória */
+    /* storage unavailable: keep in memory only */
   }
   return session;
 }
@@ -56,11 +56,11 @@ export function logout() {
 }
 
 async function request<T>(path: string, init: RequestInit & { auth?: boolean } = {}): Promise<T> {
-  if (!HAS_API) throw new Error("API não configurada (NEXT_PUBLIC_API_URL)");
+  if (!HAS_API) throw new Error("API not configured (NEXT_PUBLIC_API_URL)");
   const headers: Record<string, string> = { "Content-Type": "application/json" };
   if (init.auth) {
     const s = loadSession();
-    if (!s) throw new Error("faça login com a carteira primeiro");
+    if (!s) throw new Error("sign in with your wallet first");
     headers.Authorization = `Bearer ${s.token}`;
   }
   const res = await fetch(`${API_URL}${path}`, { ...init, headers: { ...headers, ...(init.headers as any) } });
@@ -70,10 +70,10 @@ async function request<T>(path: string, init: RequestInit & { auth?: boolean } =
 }
 
 /**
- * Sign-In With Solana: assina uma mensagem (não é transação, não custa nada).
- * A mensagem segue o formato SIWS com o domínio desta página; o backend só aceita
- * domínios da lista dele, e carteiras como a Phantom recusam se o domínio da
- * mensagem não for o da página aberta.
+ * Sign-In With Solana: signs a message (not a transaction, costs nothing).
+ * The message follows the SIWS format with this page's domain; the backend only accepts
+ * domains from its own list, and wallets such as Phantom refuse if the message's domain
+ * is not the open page's.
  */
 export async function login(wallet: string, signMessage: (m: Uint8Array) => Promise<Uint8Array>) {
   const { message } = await request<{ message: string }>("/auth/nonce", {
@@ -109,7 +109,7 @@ export const api = {
     researcher?: string;
   }) => request<{ job: JobMeta }>("/jobs", { method: "POST", auth: true, body: JSON.stringify(input) }).then((r) => r.job),
 
-  /** Candidatura a um job aberto (a atribuição continua on-chain, feita pelo cliente). */
+  /** Application to an open job (assignment remains on-chain, done by the client). */
   apply: (jobId: string) =>
     request<{ applied: boolean }>(`/jobs/${encodeURIComponent(jobId)}/apply`, { method: "POST", auth: true, body: "{}" }),
 
@@ -132,15 +132,15 @@ export const api = {
       body: JSON.stringify({ jobId }),
     }),
 
-  /** `signature` = assinatura da carteira sobre `keyBindingMessage(wallet, publicKey)` (PS-38). */
+  /** `signature` = wallet signature over `keyBindingMessage(wallet, publicKey)` (PS-38). */
   putEncryptionKey: (publicKey: string, signature: string) =>
     request("/users/me/encryption-key", { method: "PUT", auth: true, body: JSON.stringify({ publicKey, signature }) }),
 
-  /** Só devolve a chave se a carteira provou ser dona dela; o backend sozinho não vale como fonte. */
+  /** Only returns the key if the wallet proved it owns it; the backend alone is not a trusted source. */
   getEncryptionKey: (wallet: string) =>
     request<{ publicKey: string; signature?: string | null }>(`/users/${wallet}/encryption-key`).then((r) => {
       if (!verifyKeyBinding(wallet, r.publicKey, r.signature)) {
-        throw new Error("a chave de criptografia desta carteira não tem prova de posse válida (assinatura ausente ou inválida)");
+        throw new Error("this wallet's encryption key has no valid proof of possession (missing or invalid signature)");
       }
       return r.publicKey;
     }),
