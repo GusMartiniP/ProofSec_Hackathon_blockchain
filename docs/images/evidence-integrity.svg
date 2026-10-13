@@ -1,0 +1,80 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1100 560" width="1100" height="560" font-family="Inter, -apple-system, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif">
+  <title>Evidence integrity: SHA-256 across the browser, S3 and Solana</title>
+  <desc>The same SHA-256 binds the encrypted report in S3 and the evidence record on Solana. S3 rejects mismatching uploads, a Lambda re-verifies, and the client re-hashes before decrypting.</desc>
+  <defs>
+    <marker id="e" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0 0L10 5L0 10z" fill="#94a3b8"/></marker>
+  </defs>
+  <rect width="1100" height="560" rx="16" fill="#0b1020"/>
+  <text x="30" y="40" fill="#f8fafc" font-size="22" font-weight="700">Evidence integrity: one hash, three witnesses</text>
+  <text x="30" y="62" fill="#94a3b8" font-size="12.5">The report is encrypted in the browser. Its SHA-256 is enforced by S3, re-checked by a Lambda and recorded on Solana. Nobody has to trust our servers.</text>
+
+  <!-- row 1 -->
+  <rect x="30" y="90" width="320" height="140" rx="12" fill="#111a33" stroke="#334155"/>
+  <circle cx="56" cy="116" r="13" fill="#7c3aed"/><text x="56" y="121" fill="#fff" font-size="13" font-weight="700" text-anchor="middle">1</text>
+  <text x="80" y="121" fill="#f1f5f9" font-size="15" font-weight="700">Encrypt in the browser</text>
+  <text x="48" y="150" fill="#cbd5e1" font-size="12.5">report.pdf  →  encrypted envelope</text>
+  <text x="48" y="170" fill="#94a3b8" font-size="12">XSalsa20-Poly1305 with a random key,</text>
+  <text x="48" y="187" fill="#94a3b8" font-size="12">wrapped (X25519) for the client, the</text>
+  <text x="48" y="204" fill="#94a3b8" font-size="12">researcher and the arbiter only.</text>
+
+  <rect x="390" y="90" width="320" height="140" rx="12" fill="#111a33" stroke="#334155"/>
+  <circle cx="416" cy="116" r="13" fill="#7c3aed"/><text x="416" y="121" fill="#fff" font-size="13" font-weight="700" text-anchor="middle">2</text>
+  <text x="440" y="121" fill="#f1f5f9" font-size="15" font-weight="700">Hash the envelope</text>
+  <text x="408" y="150" fill="#cbd5e1" font-size="12.5" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace">H = SHA-256(envelope bytes)</text>
+  <text x="408" y="172" fill="#94a3b8" font-size="12">The same bytes that will sit in S3,</text>
+  <text x="408" y="189" fill="#94a3b8" font-size="12">so the hash can be checked later by</text>
+  <text x="408" y="206" fill="#94a3b8" font-size="12">anyone who holds the object.</text>
+
+  <rect x="750" y="90" width="320" height="140" rx="12" fill="#2a1d0a" stroke="#ff9900"/>
+  <circle cx="776" cy="116" r="13" fill="#ff9900"/><text x="776" y="121" fill="#1a1308" font-size="13" font-weight="700" text-anchor="middle">3</text>
+  <text x="800" y="121" fill="#fff1d6" font-size="15" font-weight="700">Upload to S3, bound to H</text>
+  <text x="768" y="150" fill="#ffd9a0" font-size="11.5" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace">key: reports/&lt;jobId&gt;/H.bin</text>
+  <text x="768" y="170" fill="#c9a36a" font-size="12">Presigned PUT that forces the header</text>
+  <text x="768" y="187" fill="#c9a36a" font-size="12" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace">x-amz-checksum-sha256 = H</text>
+  <text x="768" y="206" fill="#c9a36a" font-size="12">S3 refuses bytes that do not match.</text>
+
+  <path d="M350 160 L390 160" stroke="#94a3b8" stroke-width="2" fill="none" marker-end="url(#e)"/>
+  <path d="M710 160 L750 160" stroke="#94a3b8" stroke-width="2" fill="none" marker-end="url(#e)"/>
+
+  <!-- elbow from 3 to 4 -->
+  <path d="M910 230 L910 262 L190 262 L190 290" stroke="#94a3b8" stroke-width="2" fill="none" marker-end="url(#e)"/>
+
+  <!-- row 2 -->
+  <rect x="30" y="290" width="320" height="150" rx="12" fill="#2a1d0a" stroke="#ff9900"/>
+  <circle cx="56" cy="316" r="13" fill="#ff9900"/><text x="56" y="321" fill="#1a1308" font-size="13" font-weight="700" text-anchor="middle">4</text>
+  <text x="80" y="321" fill="#fff1d6" font-size="15" font-weight="700">Re-verify on the server side</text>
+  <text x="48" y="350" fill="#c9a36a" font-size="12">An S3 event triggers a Lambda that</text>
+  <text x="48" y="367" fill="#c9a36a" font-size="12">streams the object and recomputes</text>
+  <text x="48" y="384" fill="#c9a36a" font-size="12">SHA-256. If it differs from the key,</text>
+  <text x="48" y="401" fill="#c9a36a" font-size="12">the object is deleted and an SNS</text>
+  <text x="48" y="418" fill="#c9a36a" font-size="12">security alert is raised.</text>
+
+  <rect x="390" y="290" width="320" height="150" rx="12" fill="#150f2e" stroke="#7c3aed"/>
+  <circle cx="416" cy="316" r="13" fill="#7c3aed"/><text x="416" y="321" fill="#fff" font-size="13" font-weight="700" text-anchor="middle">5</text>
+  <text x="440" y="321" fill="#f3e8ff" font-size="15" font-weight="700">Anchor H on Solana</text>
+  <text x="408" y="350" fill="#e9d5ff" font-size="12" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace">submit_evidence(H)</text>
+  <text x="408" y="372" fill="#b59ae0" font-size="12">Immutable and timestamped by the chain.</text>
+  <text x="408" y="389" fill="#b59ae0" font-size="12">It opens the review window, after which</text>
+  <text x="408" y="406" fill="#b59ae0" font-size="12">silence releases the payment.</text>
+
+  <rect x="750" y="290" width="320" height="150" rx="12" fill="#111a33" stroke="#334155"/>
+  <circle cx="776" cy="316" r="13" fill="#7c3aed"/><text x="776" y="321" fill="#fff" font-size="13" font-weight="700" text-anchor="middle">6</text>
+  <text x="800" y="321" fill="#f1f5f9" font-size="15" font-weight="700">Client verifies, then opens</text>
+  <text x="768" y="350" fill="#94a3b8" font-size="12">The download key is derived from the</text>
+  <text x="768" y="367" fill="#94a3b8" font-size="12">on-chain hash, not from user input.</text>
+  <text x="768" y="384" fill="#94a3b8" font-size="12">The browser re-hashes the bytes, compares</text>
+  <text x="768" y="401" fill="#94a3b8" font-size="12">with the chain and only then decrypts</text>
+  <text x="768" y="418" fill="#94a3b8" font-size="12">locally. The backend never sees plaintext.</text>
+
+  <path d="M350 365 L390 365" stroke="#94a3b8" stroke-width="2" fill="none" marker-end="url(#e)"/>
+  <path d="M710 365 L750 365" stroke="#94a3b8" stroke-width="2" fill="none" marker-end="url(#e)"/>
+  <text x="730" y="357" fill="#64748b" font-size="10.5" text-anchor="middle">H</text>
+
+  <!-- witnesses banner -->
+  <rect x="30" y="466" width="1040" height="70" rx="12" fill="#0f2a22" stroke="#14f195"/>
+  <text x="50" y="494" fill="#d1fae5" font-size="14" font-weight="700">The three witnesses must agree</text>
+  <rect x="50" y="504" width="240" height="22" rx="11" fill="#14352c"/><text x="170" y="519" fill="#6ee7b7" font-size="12" text-anchor="middle">S3 object key contains H</text>
+  <rect x="302" y="504" width="240" height="22" rx="11" fill="#14352c"/><text x="422" y="519" fill="#6ee7b7" font-size="12" text-anchor="middle">S3 checksum header equals H</text>
+  <rect x="554" y="504" width="240" height="22" rx="11" fill="#14352c"/><text x="674" y="519" fill="#6ee7b7" font-size="12" text-anchor="middle">Solana evidence_sha256 equals H</text>
+  <text x="810" y="519" fill="#a7f3d0" font-size="12">A swap in any one of them is detected.</text>
+</svg>
