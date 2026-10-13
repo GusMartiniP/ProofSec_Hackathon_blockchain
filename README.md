@@ -43,7 +43,7 @@ Empresa / Agente                      Solana (programa ProofSec)                
 ## Arquitetura
 
 ```
- Frontend (Next.js 14, App Router)   ── wallet-adapter (Phantom/Solflare/Backpack via Wallet Standard)
+ Frontend (Next.js 16.4, App Router) ── wallet-adapter (Phantom/Solflare/Backpack via Wallet Standard)
    │  lê jobs direto da chain (fonte da verdade)          │ assina transações
    │  REST + JWT (Sign-In With Solana)                    ▼
    ▼                                           Solana: programa ProofSec (Anchor 1.x)
@@ -63,9 +63,9 @@ O frontend funciona também **sem o backend** ("modo só on-chain"): cria escrow
 ```
 AGENTS.md             Regras invioláveis e orquestração (lido por todos os agentes)
 contracts/            Workspace Anchor (programs/proofsec, tests/, scripts/)  · AGENTS.md (Codex)
-backend-serverless/   AWS SAM: template.yaml, functions/, tests/              · AGENTS.md (Kiro)
+backend-serverless/   AWS SAM: template.yaml, functions/, tests/              · AGENTS.md (Claude Code)
 agent/                agent.py (demo) · core.ts + executor.ts/lambda.ts       · AGENTS.md (Claude Code)
-frontend/             Next.js 14 + Tailwind + @anchor-lang/core               · AGENTS.md (Claude Code)
+frontend/             Next.js 16.4 + Tailwind + @anchor-lang/core             · AGENTS.md (Claude Code)
 tests/                e2e, segurança de API e resiliência (planejado)         · AGENTS.md (Claude Code)
 docs/                 arquitetura, program design, threat model, security review,
                       resiliência, runbook, decisões (ADRs) e manual em PDF
@@ -77,8 +77,7 @@ docs/                 arquitetura, program design, threat model, security review
 |---|---|
 | **Antigravity** | orquestra, distribui tarefas e faz a revisão de segurança independente; dono de `docs/` |
 | **Codex** | programa Solana (`contracts/`) |
-| **Kiro** | infraestrutura AWS e Lambdas (`backend-serverless/`) |
-| **Claude Code** | construção do frontend, do agente e dos testes ponta a ponta |
+| **Claude Code** | frontend, agente, testes ponta a ponta e infraestrutura AWS/Lambdas (`backend-serverless/`, ADR-024) |
 
 Todas as ferramentas leem os `AGENTS.md` nativamente, por pasta. Não crie `CLAUDE.md`:
 ele faz o Claude Code parar de ler os `AGENTS.md`. Achados e backlog por agente ficam em

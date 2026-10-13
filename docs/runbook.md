@@ -54,7 +54,7 @@ Nunca usar credenciais ou carteiras de produção em dev.
    aws ssm put-parameter --name /proofsec/dev/agent-keypair  --type SecureString --value file://agent/agent-keypair.json  # executor Lambda
    ```
    Rotação: `put-parameter --overwrite`; as Lambdas releem em até 5 min (cache).
-3. **Backend** (Kiro), em `backend-serverless/` (usa `samconfig.toml`):
+3. **Backend** (Claude Code gera o changeset; humano executa, ADR-024), em `backend-serverless/` (usa `samconfig.toml`):
    ```
    sam validate --lint
    sam build            # precisa do Python da runtime (3.12) ou use --use-container
@@ -71,7 +71,7 @@ Nunca usar credenciais ou carteiras de produção em dev.
    `AllowedOrigin='*'`, `localhost` em `SiwsDomains`, `AlertEmail` vazio e o `ProgramId`
    provisório. A rede permanece restrita à devnet neste MVP. Tabelas e bucket têm `Retain`.
 4. **Frontend** (Claude Code): `.env.local` com `NEXT_PUBLIC_PROGRAM_ID`, `NEXT_PUBLIC_API_URL`
-   (output `ApiEndpoint`) e, se houver, `NEXT_PUBLIC_RPC_URL_FALLBACK` → `npm run build`.
+   (output `ApiEndpoint`) e, se houver, `NEXT_PUBLIC_RPC_URL_FALLBACK` → `npm run build:static`.
    Em `next start`/Amplify SSR/Vercel os headers de segurança saem do `next.config.mjs`; em
    export estático (S3+CloudFront) replique-os numa response headers policy.
 5. **Agente** (opcional):

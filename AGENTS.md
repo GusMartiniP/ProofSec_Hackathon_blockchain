@@ -3,7 +3,7 @@
 ProofSec is a programmable USDC escrow on Solana for offensive-security engagements
 (pentest / audit). Hackathon MVP (Superteam Brasil / Colosseum), **devnet only**.
 
-This file is loaded by Antigravity, Claude Code, Kiro, Codex and any AGENTS.md-aware tool.
+This file is loaded by Antigravity, Claude Code, Codex and any AGENTS.md-aware tool.
 Nested `AGENTS.md` files add rules for their area; they never relax rules here.
 Keep this file under 8 KB: Codex stops reading at 32 KiB combined and drops the
 deepest (most specific) files first.
@@ -13,15 +13,15 @@ deepest (most specific) files first.
 | Path | Contents | Owner agent |
 |---|---|---|
 | `contracts/` | Anchor 1.x workspace: program, tests, IDL scripts | **Codex** |
-| `backend-serverless/` | AWS SAM template, Python 3.12 Lambdas, unit tests | **Kiro** |
-| `agent/` | brain demo (`agent.py`), executor core (`core.ts`) for CLI and Lambda; `template.yaml` reviewed by Kiro | **Claude Code** |
+| `backend-serverless/` | AWS SAM template, Python 3.12 Lambdas, unit tests | **Claude Code** (ADR-024) |
+| `agent/` | brain demo (`agent.py`), executor core (`core.ts`) for CLI and Lambda; `template.yaml` reviewed by Antigravity | **Claude Code** |
 | `frontend/` | Next.js 14 app (wallet, encryption, on-chain calls) | **Claude Code** |
 | `tests/` | cross-component e2e, API security, resilience (planned) | **Claude Code** |
 | `docs/` | architecture, program design, threat model, reviews, runbook, decisions | Antigravity |
 
 **Antigravity is the orchestrator and independent security reviewer.** It plans, writes
 tasks with acceptance criteria, assigns them to the owner agent, reviews every change and
-owns `docs/`. It does not author the code it reviews. Codex, Kiro and Claude Code build
+owns `docs/`. It does not author the code it reviews. Codex and Claude Code build
 code in their areas. The orchestrator may reassign a task; the assignment goes in the task.
 
 ## 2. Invariants — never break them, never work around them
@@ -68,7 +68,7 @@ Changing an invariant is an architecture change → follow §6.
    - the IDL (owned by `contracts/`);
    - the JobAccount byte layout (decoded in `backend-serverless/functions/common/solana.py`);
    - the HTTP API (`backend-serverless/template.yaml` ↔ `frontend/src/lib/api.ts`, `agent/core.ts`).
-4. Kiro specs (`.kiro/specs/*`) must reference `docs/` rather than duplicate architecture.
+4. Specs and task files of any tool must reference `docs/`, not duplicate architecture.
 5. **Tool loading:** keep shared rules in `AGENTS.md` files only. Do not add a `CLAUDE.md`
    (it makes Claude Code stop reading `AGENTS.md`, including nested ones). Do not use
    `AGENTS.override.md` (Codex) or `.agents/` (Antigravity) for shared rules; other tools ignore them.
@@ -82,6 +82,7 @@ Changing an invariant is an architecture change → follow §6.
 `sam build`, `sam deploy --no-execute-changeset` on the dev stack, local tests.
 
 **Requires explicit approval:**
+- executing a changeset is human-only: no agent holds `ExecuteChangeSet` (ADR-024);
 - executing a CloudFormation changeset or deploying any non-dev stack;
 - IAM changes, deleting stacks, tables or buckets, `sam delete`;
 - changing the program upgrade authority or the `Config` admin / arbiter / treasury;
@@ -129,7 +130,8 @@ cd backend-serverless && sam validate --lint && sam build
 `docs/architecture.md` · `docs/program-design.md` · `docs/threat-model.md` ·
 `docs/security-review.md` (findings + backlog per agent) · `docs/resilience.md` ·
 `docs/runbook.md` · `docs/decisions.md` · `docs/ProofSec_Manual_Tecnico.pdf` ·
-current status and next tasks: `CONTEXT_FOR_ANTIGRAVITY.md`
+current status and next tasks: `CONTEXT_FOR_ANTIGRAVITY.md` ·
+latest handoff (AWS dev deploy, frontend hosting, roles): `docs/handoff-2026-10-06-claude-code.md`
 
 <!-- BEGIN AWS Agent Toolkit rules -->
 ## AWS new experience

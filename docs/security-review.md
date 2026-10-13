@@ -43,7 +43,7 @@ reais continuam dependentes da futura conta dev.
 | PS-14 | Info | `rent_payer` no job: o rent volta para quem pagou (agente ou cliente) | `proofsec.ts` "PS-14" | Corrigido no código |
 | PS-15 | Info | aviso na UI (um delegate por conta) e checagem do delegate no executor | revisão manual; `core.test.ts` | Corrigido no código |
 | PS-16 | Info | `surfnet_timeTravel` no lugar de `sleep` | `proofsec.ts` bloco "dependentes do relógio" | Corrigido no código |
-| PS-17 | Info | primeiro `anchor build`/`anchor test`, `sam validate/build`, `npm run build` e testes | contrato 34/34; backend 72/72; agente 14/14; frontend build/typecheck; `sam validate --lint` e `sam build` nos dois templates | **Corrigido localmente** |
+| PS-17 | Info | primeiro `anchor build`/`anchor test`, `sam validate/build`, export estático e testes | contrato 34/34; backend 95/95; agente 18/18; meta/CSP 21/21; frontend build/typecheck; `sam validate --lint` nos dois templates | **Corrigido localmente** |
 | PS-18 | Low | `.gitignore` completo | — | Corrigido |
 | PS-19 | Info | sem pausa de emergência (ADR-011) | — | Aceito |
 | PS-20 | Medium | tamanho do relatório integra a assinatura SigV4 do PUT; entrada malformada retorna 400 | `test_upload_only_for_linked_researcher`; `test_malformed_numeric_and_hash_inputs_are_400` | Corrigido no código · testes OK |
@@ -77,6 +77,7 @@ reais continuam dependentes da futura conta dev.
 | PS-48 | Medium | `contracts/Anchor.toml` com `[provider] cluster = "devnet"`: `anchor test` não sobe validador local e roda (e pode implantar) contra a devnet real | revisão; `contracts/AGENTS.md` | Corrigido no código (cluster padrão `localnet`) · Codex confirma com `anchor test` |
 | PS-49 | Low | o agente de revisão escreve no bucket de artefatos do SAM e o `sam deploy` pula o upload de objeto com o mesmo hash: pacote trocado entre revisão e execução seria reaproveitado | `force_upload = true` nos `samconfig.toml`; runbook | Corrigido no código · residual: build/deploy ainda saem da máquina do agente |
 | PS-50 | Info | hospedagem do frontend sem WAF nem log de acesso | `hosting.yaml` (`EnableWaf`, `EnableAccessLogs`, desligados por padrão, custo); `unsafe-inline` segue (limitação do Next sem nonce, PS-12) | Mitigação opcional · Amplify em uso não tem WAF/logs |
+| PS-51 | Info | `AccessLogSettings.DestinationArn` usava `GetAtt LogGroup.Arn` com `:*`; o API Gateway persiste o ARN sem o sufixo e deixava `proofsec-dev` permanentemente `DRIFTED`, ocultando drift futuro | `test_destination_arn_has_no_log_stream_wildcard`; detecção CloudFormation | Corrigido localmente · próximo changeset dev precisa reconciliar a stack |
 
 ### Detalhamento PS-20–PS-24
 
@@ -411,7 +412,7 @@ start das Lambdas ainda precisam ser confirmados numa conta AWS dev real.
 
 | Agente | Itens |
 |---|---|
-| **Codex** (`contracts/`) | PS-46: definir/sincronizar a identidade devnet com todos os consumidores · PS-45: acompanhar migração Anchor/Solana · completar o catálogo de ataques em `contracts/tests/AGENTS.md` |
-| **Kiro** (`backend-serverless/`, `agent/template.yaml`) | gerar e revisar o changeset dev sem executar · confirmar filtros/eventos numa conta real · headers de segurança no host (PS-12) · CloudFront+WAF (limite por IP) |
-| **Claude Code** (`frontend/`, `agent/`, `tests/`) | PS-44: atualizar Next/Tailwind e revalidar o export · PS-45: migração coordenada de dependências · troca automática de RPC na UI (PS-13) · `tests/api-security` · atualizar o manual em PDF |
+| **Codex** (`contracts/`) | PS-45: acompanhar migração Anchor/Solana · confirmar PS-48 com `anchor test` · completar o catálogo de ataques em `contracts/tests/AGENTS.md` |
+| **Claude Code** (`backend-serverless/`, `agent/template.yaml`, desde o ADR-024) | confirmar drift/filtros/eventos na conta dev · preparar CloudTrail opcional · revisar o executor sem implantá-lo |
+| **Claude Code** (`frontend/`, `agent/`, `tests/`) | republicar CSP PS-47 no Amplify · PS-45: migração coordenada de dependências · React 19 · troca automática de RPC na UI (PS-13) · `tests/api-security`/`tests/e2e` · atualizar o manual em PDF |
 | **Antigravity** | revisar cada entrega · manter este arquivo e `decisions.md` |

@@ -1,4 +1,4 @@
-# backend-serverless/AGENTS.md — AWS & backend rules (owner: Kiro)
+# backend-serverless/AGENTS.md — AWS & backend rules (owner: Claude Code, ADR-024)
 
 Supplements the root `AGENTS.md`. Applies to any agent editing this folder.
 Infrastructure is part of the security boundary.
@@ -33,11 +33,12 @@ sam deploy --no-execute-changeset --stack-name proofsec-dev   # review = "plan"
 - Never target a stack other than `proofsec-dev` without approval.
 - `sam delete`, deleting tables or buckets, and IAM changes outside the template need approval.
 
-## 4. Kiro specs
+## 4. Specs and deploy flow
 
-Specs live in `.kiro/specs/<feature>/` (`requirements.md`, `design.md`, `tasks.md`).
-They must link to `docs/` instead of redefining the architecture. Every task carries
-security acceptance criteria and names the finding IDs it closes.
+Specs and task files link to `docs/` instead of redefining the architecture. Every task carries
+security acceptance criteria and names the finding IDs it closes. Deploy flow (ADR-024): the owner
+runs `sam deploy --no-execute-changeset` and reads the changeset, Antigravity reviews it, and a
+**human** executes `sam deploy` after a clean `sam build` (`force_upload = true`, PS-49).
 
 ## 5. Application rules
 
@@ -119,9 +120,9 @@ optional CloudTrail (`EnableCloudTrail`), `Rules` that refuse dev values in prod
 ## 8. Open findings owned here
 
 PS-05, PS-07–PS-11, PS-13 and PS-20–PS-31 (backend portions) are fixed in code. Still open:
-deployment/integration in a real AWS dev account and per-IP rate limiting (backlog). The first
-real `sam validate --lint` / `sam build` passed, and the backend unit suite passed 72/72, on
-2026-10-06.
+per-IP rate limiting (backlog). A stack dev real está implantada; `sam validate --lint`, `sam build`
+e a suíte de 95 testes passaram em 2026-10-06. PS-51 corrige localmente o único drift encontrado
+no estágio do API Gateway; a reconciliação ao vivo depende do próximo changeset aprovado.
 
 ## 9. Pre-deploy checklist
 

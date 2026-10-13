@@ -298,7 +298,7 @@ resolver tudo). Qualquer uma pode ser revista por novo ADR.
 - **Segurança:** o executor só financia empresas conhecidas. No dev o comportamento é o antigo,
   para a demo. **Operacional:** em staging/prod é preciso preencher `AllowedOwners`.
 
-## ADR-024 — Backend sai do Kiro; Claude Code sobe e testa o ambiente AWS; um usuário IAM por agente · Proposta
+## ADR-024 — Backend sai do Kiro; Claude Code sobe e testa o ambiente AWS; um usuário IAM por agente · Aceita
 
 - **Decisão:** (1) `backend-serverless/` passa do Kiro para o **Claude Code** (o Kiro deixa de
   atuar no projeto); a tabela do §1 do `AGENTS.md` e o item "template.yaml revisado por Kiro"
@@ -356,3 +356,7 @@ resolver tudo). Qualquer uma pode ser revista por novo ADR.
   `hooks/useRole.ts`, `components/RolePicker.tsx` e `app/page.tsx`. Teste `tests/role.test.ts`
   (9 casos, dentro de `npm run test:meta`). Fora do ADR: `AdminSetup` continua aparecendo só enquanto a
   `Config` não existe (na devnet ela já existe), então não precisou de filtro por papel.
+- **Aprovação:** aprovado pelo dono no chat em 2026-10-06. Aplicados: tabela do §1 e §5 do `AGENTS.md`,
+  `agent/AGENTS.md`, `backend-serverless/AGENTS.md`, README, runbook e `CONTEXT_FOR_CLAUDE.md`. Os achados
+  históricos de `security-review.md` mantêm "Dono: Kiro" (registro de quem corrigiu na época). **Pendente,
+  ação humana:** criar os usuários IAM (`docs/iam/agent-users.yaml`) e trocar o perfil do MCP da AWS.

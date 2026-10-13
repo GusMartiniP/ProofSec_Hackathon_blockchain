@@ -1,7 +1,7 @@
 # agent/AGENTS.md — AI agent: brain and hands (builder: Claude Code)
 
 Supplements the root `AGENTS.md`. The brain's Python modules live in
-`backend-serverless/` (Kiro's area); changes there are coordinated tasks.
+`backend-serverless/` (also Claude Code's area, ADR-024); changes there are coordinated tasks.
 
 ## 1. Parts
 
@@ -12,7 +12,7 @@ Supplements the root `AGENTS.md`. The brain's Python modules live in
   `/rejected` (permanent refusals go to human review, `NEEDS_HUMAN`). Entry points:
   `executor.ts` (CLI) and `lambda.ts` (scheduled Lambda, separate optional stack
   `agent/template.yaml`, key in SSM). The on-chain `AgentPolicy` is authoritative.
-- `agent/template.yaml` is AWS infra: Kiro reviews it, and IAM changes need approval.
+- `agent/template.yaml` is AWS infra: Antigravity reviews it, and IAM changes need approval.
 
 ## 2. Rules
 

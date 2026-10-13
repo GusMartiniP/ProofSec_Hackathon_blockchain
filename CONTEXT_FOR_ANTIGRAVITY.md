@@ -1,4 +1,4 @@
-# ProofSec — Handoff para o Antigravity (orquestrador) · 2026-10-02
+# ProofSec — Handoff para o Antigravity (orquestrador) · atualizado em 2026-10-06
 
 Este arquivo diz **onde o projeto está e o que fazer agora**. O que o sistema é está em
 `CONTEXT_FOR_CLAUDE.md` (vale para qualquer agente). As regras estão em `AGENTS.md`
@@ -6,16 +6,16 @@ Este arquivo diz **onde o projeto está e o que fazer agora**. O que o sistema �
 
 ## 1. Situação em uma frase
 
-O código das quatro partes (contrato, backend AWS, frontend, agente) está escrito e passou pelo
-primeiro ciclo local completo de build e testes. O programa foi publicado na **devnet** em
-2026-10-06 (`HCYkSp64qdMRjiCbauEzPhx9VtNGB6fp5NvKdCRb8tjj`); nenhuma stack AWS foi implantada.
+O programa e a `Config` estão na devnet; o backend `proofsec-dev` e o frontend no Amplify estão
+no ar em `us-east-1`. O executor do agente não foi implantado. A sessão AWS ainda usa root;
+CloudTrail e WAF não existem e o e2e com duas carteiras continua pendente.
 
 ## 2. Leia nesta ordem
 
 1. `AGENTS.md` (raiz) e o `AGENTS.md` da área da tarefa.
 2. `CONTEXT_FOR_CLAUDE.md` — visão do sistema (contas, instruções, rotas, segredos).
-3. `docs/security-review.md` — status PS-01..PS-46 e backlog por agente.
-4. `docs/decisions.md` — ADR-001..023 (P1–P6 viraram ADR-012..017; ADR-018 = regra de layout).
+3. `docs/security-review.md` — status PS-01..PS-51 e backlog por agente.
+4. `docs/decisions.md` — ADR-001..025; ADR-024 continua proposta e ADR-025 está aceita.
 5. `docs/runbook.md` — segredos no SSM, ordem de deploy, incidentes.
 
 ## 3. O que foi feito na rodada de 2026-10-02
@@ -45,10 +45,10 @@ primeiro ciclo local completo de build e testes. O programa foi publicado na **d
 
 | Verificação | Resultado | Como rodar |
 |---|---|---|
-| Testes do backend | 72 OK | `npm run test:backend` |
-| Testes do executor (rede injetada) | 14 OK; mutação 7/7 detectada | `npm run test:agent` |
+| Testes do backend | 95 OK | `npm run test:backend` |
+| Testes do executor (rede injetada) | 18 OK | `npm run test:agent` |
 | IDL provisório × Rust | confere | `python contracts/scripts/gen_idl_preview.py --check` |
-| Templates SAM (refs, condições, rotas, IAM derivado do código) | backend: 48 recursos/16 rotas OK; executor: 7 recursos OK | `npm run check:templates` |
+| Templates SAM (refs, condições, rotas, IAM derivado do código) | backend: 51 recursos/16 rotas OK; executor: 7 recursos OK | `npm run check:templates` |
 | Tipos do frontend e do agente | OK (com stubs das libs) | `npm --prefix frontend run typecheck` |
 | Bundle da Lambda do executor (esbuild, `.cjs`) | carrega, lê o SSM | `cd agent && sam build` |
 | Criptografia v2 | determinística, por origem, v1≠v2, round-trip | revisão manual |
@@ -64,10 +64,9 @@ Dois bugs reais achados na revisão: o `template.yaml` antigo era YAML inválido
 - `sam validate --lint` e `sam build` passaram nos templates do backend e do executor. No
   executor, o PowerShell precisou incluir `agent/node_modules/.bin` no `PATH` para o SAM achar o
   `esbuild` local.
-- Backend 72/72, agente 14/14, preflight, frontend build/typecheck e bundle Lambda passaram.
-- Pendências abertas: Next.js crítico no audit (PS-44), cadeia Solana/Anchor vulnerável nos três
-  workspaces (PS-45), Program ID divergente da keypair de deploy (PS-46) e 18 avisos não fatais
-  de `unexpected cfg` emitidos pelos macros Anchor/Solana.
+- Backend 95/95, agente 18/18, meta/CSP 21/21, frontend export estático/typecheck e bundle Lambda passam.
+- PS-44 e PS-46 foram corrigidos. Permanecem PS-45 (cadeia Solana/Anchor), React 19 e os avisos
+  não fatais de `unexpected cfg` emitidos pelos macros Anchor/Solana.
 
 ## 6. Próximas tarefas (ordem, dono, critério de aceite)
 
@@ -77,9 +76,9 @@ Dois bugs reais achados na revisão: o `template.yaml` antigo era YAML inválido
 |---|---|---|---|
 | A0 | Antigravity | Atualizar `docs/program-design.md` (layout novo: arbiter 236 … job_id 318; `resolve_dispute_timeout`; P-7 e P-11 resolvidos; taxa congelada), `docs/architecture.md` (SSM, SNS, SQS, Nonces, executor em stack própria; `executor.ts` → `core.ts`) e `docs/threat-model.md` (T4–T11 apontando para as correções) | docs batem com o código |
 | A1 | Codex | `cd contracts && anchor build && anchor test` | **Concluído:** build OK; 34/34 testes; PS-17 registrado |
-| A2 | Kiro | `npm run test:backend`, `sam validate --lint`, `sam build` | **Concluído:** 72/72; lint e build OK |
-| A3 | Claude Code | `npm install && npm run build` (frontend); `npm install && npm test && npm run typecheck` (agent) | **Concluído:** builds, tipos e 14/14 testes OK |
-| A4 | Antigravity | Revisão independente de A1–A3; novos achados no formato do `security-review.md` | **Concluído:** PS-17 fechado; PS-44/45/46 abertos |
+| A2 | Kiro | `npm run test:backend`, `sam validate --lint`, `sam build` | **Concluído:** 95/95; lint e build OK |
+| A3 | Claude Code | `npm run build:web`; `npm install && npm test && npm run typecheck` (agent) | **Concluído:** export estático, tipos, 18/18 do executor e 21/21 meta/CSP |
+| A4 | Antigravity | Revisão independente de A1–A3; novos achados no formato do `security-review.md` | PS-17, PS-44 e PS-46 fechados; PS-45 aberto; PS-47–PS-51 registrados |
 
 **Fase B — deploy em dev**
 
@@ -87,15 +86,15 @@ Dois bugs reais achados na revisão: o `template.yaml` antigo era YAML inválido
 |---|---|---|---|
 | B1 | Dono do projeto | Escolher a conta AWS (ideal: separada, IAM Identity Center + MFA, nunca root) e a região; `aws configure sso`; carteira dev com SOL de devnet | — |
 | B2 | Codex | `anchor keys sync`, `anchor build`, `anchor deploy --provider.cluster devnet` e inicialização da `Config` concluídos para `HCYkSp64qdMRjiCbauEzPhx9VtNGB6fp5NvKdCRb8tjj` | concluído em devnet com aprovação humana |
-| B3 | Kiro | Criar os segredos no SSM (runbook §2) → `sam deploy --no-execute-changeset` → revisar o changeset | **executar o changeset exige aprovação humana** |
-| B4 | Claude Code | `.env.local` do frontend (`NEXT_PUBLIC_PROGRAM_ID`, `NEXT_PUBLIC_API_URL`) e smoke test do runbook §2.6 | — |
+| B3 | Kiro | Backend `proofsec-dev` implantado; dois SecureStrings criados; confirmar drift e e2e | changesets futuros exigem aprovação humana |
+| B4 | Claude Code | Frontend publicado no Amplify; republicar build/headers PS-47 e concluir smoke e2e | — |
 | B5 | Claude Code + Kiro | Executor: CLI primeiro; depois a stack `agent/template.yaml` | changeset com IAM exige aprovação |
 
 **Fase C — pendências menores (não bloqueiam a demo)**
 
 - Troca automática de RPC na UI (PS-13, parte frontend).
 - `tests/api-security` (caixa-preta, pula sem `API_URL`).
-- Headers de segurança no host se o frontend for export estático (CloudFront/Amplify).
+- CSP PS-47 preparada localmente; ainda precisa ser republicada no Amplify.
 - Atualizar `docs/ProofSec_Manual_Tecnico.pdf` (não mostra timeout de disputa, Nonces/SSM/SNS/DLQ nem o executor Lambda).
 - Roteiro da demo e pitch do hackathon. V2: Squads (árbitro/tesouraria), SAS, USDC+.
 
@@ -133,13 +132,13 @@ testes rodados, riscos abertos, docs atualizados.
 - **Testes adicionados/ativados:** regressões para `ContentLength`, entradas malformadas,
   paginação além de 100 itens, corrida de candidatura, JWT adversarial, idempotência/lote do
   EventBridge, severidade e chave curta do executor.
-- **Validação executada:** `npm run preflight:local` — backend 72/72; agente 14/14 e
+- **Validação executada:** `npm run preflight:local` — backend 95/95; agente 18/18 e
   typecheck; checker offline dos dois templates; bundle Node 22 carregando `handler`; typecheck
   e build estático do frontend; IDL conferido contra o Rust. O audit online posterior invalidou
   o resultado offline limitado ao cache e abriu PS-44/45.
-- **Riscos abertos:** PS-44 (Next.js crítico), PS-45 (cadeias Solana/Anchor) e cold start real
-  do executor; CloudFront+WAF continua sendo o controle futuro para limite por IP. O programa
-  foi implantado na devnet; não houve execução de changeset AWS.
+- **Riscos abertos:** PS-45 (cadeias Solana/Anchor), React 19 e cold start real do executor;
+  CloudFront+WAF continua sendo o controle futuro para limite por IP. O programa, a `Config`,
+  o backend e o Amplify foram implantados; o executor continua fora do ar.
 - **Docs atualizados:** `README.md`, `ANALISE_TECNICA_PROOFSEC.md`, `docs/runbook.md`,
   `docs/security-review.md`, `docs/resilience.md` e `backend-serverless/AGENTS.md`.
 - **Revisão:** PS-25–PS-31 e as alterações desta rodada aguardam revisão independente, pois o

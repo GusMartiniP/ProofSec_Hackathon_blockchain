@@ -358,6 +358,6 @@ Outputs:
   NextStep:
     Description: Acao operacional somente depois da aprovacao da ADR-024 e da mudanca IAM.
     Value: >-
-      Create ONE access key per user out-of-band (human, aws iam create-access-key),
-      store it in a named profile on the machine that runs that agent
-      (never in git, never in prompts), rotate every 90 days.
+      Do not create access keys while ADR-024 is Proposed. Prefer short-lived federated
+      credentials through IAM Identity Center; if this template is approved as a temporary
+      migration, create and store credentials out-of-band and remove them after migration.

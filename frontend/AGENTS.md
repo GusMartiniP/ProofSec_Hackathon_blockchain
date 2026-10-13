@@ -2,7 +2,7 @@
 
 Supplements the root `AGENTS.md`.
 
-**Stack:** Next.js 14 (App Router, client-only page, static-export compatible),
+**Stack:** Next.js 16.4 (App Router, client-only page, static export via `build:static`),
 wallet-adapter (Wallet Standard), `@anchor-lang/core`, `tweetnacl`.
 
 ## 1. Rules
@@ -36,4 +36,4 @@ wallet-adapter (Wallet Standard), `@anchor-lang/core`, `tweetnacl`.
 
 ## 2. Commands
 
-`npm run dev` · `npm run build` · `npm run typecheck`
+`npm run dev` · `npm run build:static` · `npm run typecheck`
