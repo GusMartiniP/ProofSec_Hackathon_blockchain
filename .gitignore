@@ -6,6 +6,7 @@ target/
 .anchor/
 test-ledger/
 .aws-sam/
+.aws-review/
 __pycache__/
 *.pyc
 

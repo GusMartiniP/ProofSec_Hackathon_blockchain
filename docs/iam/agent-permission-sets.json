@@ -1,0 +1,744 @@
+{
+  "AWSTemplateFormatVersion": "2010-09-09",
+  "Description": "ProofSec agent permission sets using existing Identity Center; no users or credentials created; human executes changeset.",
+  "Metadata": {
+    "AWSToolsMetrics": {
+      "AWSAgentToolkit": "aws-cloudformation@3"
+    },
+    "com.aws.cloudformation.Context": {
+      "ref": [
+        "docs/decisions.md",
+        "docs/aws-hardening-2026-10-12.md"
+      ],
+      "must": [
+        "ADR-029 requires approval before deployment.",
+        "No removal of existing administrator assignments."
+      ]
+    }
+  },
+  "Parameters": {
+    "Stage": {
+      "Type": "String",
+      "Default": "dev",
+      "AllowedValues": [
+        "dev"
+      ]
+    },
+    "AppRegion": {
+      "Type": "String",
+      "Default": "us-east-1",
+      "AllowedValues": [
+        "us-east-1"
+      ]
+    },
+    "InstanceArn": {
+      "Type": "String",
+      "AllowedPattern": "arn:aws:sso:::instance/ssoins-[a-zA-Z0-9]+",
+      "Description": "Existing IAM Identity Center instance in the selected Region."
+    },
+    "CodexPrincipalId": {
+      "Type": "String",
+      "Default": "",
+      "AllowedPattern": "^$|^[a-zA-Z0-9-]+$",
+      "Description": "Existing dedicated SSO user ID; empty creates no account assignment."
+    },
+    "ClaudePrincipalId": {
+      "Type": "String",
+      "Default": "",
+      "AllowedPattern": "^$|^[a-zA-Z0-9-]+$",
+      "Description": "Existing dedicated SSO user ID; empty creates no account assignment."
+    },
+    "ReviewPrincipalId": {
+      "Type": "String",
+      "Default": "",
+      "AllowedPattern": "^$|^[a-zA-Z0-9-]+$",
+      "Description": "Existing dedicated SSO user ID; empty creates no account assignment."
+    }
+  },
+  "Conditions": {
+    "HasCodex": {
+      "Fn::Not": [
+        {
+          "Fn::Equals": [
+            {
+              "Ref": "CodexPrincipalId"
+            },
+            ""
+          ]
+        }
+      ]
+    },
+    "HasClaude": {
+      "Fn::Not": [
+        {
+          "Fn::Equals": [
+            {
+              "Ref": "ClaudePrincipalId"
+            },
+            ""
+          ]
+        }
+      ]
+    },
+    "HasReview": {
+      "Fn::Not": [
+        {
+          "Fn::Equals": [
+            {
+              "Ref": "ReviewPrincipalId"
+            },
+            ""
+          ]
+        }
+      ]
+    }
+  },
+  "Resources": {
+    "GuardrailsPolicy": {
+      "Type": "AWS::IAM::ManagedPolicy",
+      "Properties": {
+        "ManagedPolicyName": {
+          "Fn::Sub": "${AWS::StackName}-guardrailspolicy"
+        },
+        "Description": "Hard limits for all agents (AGENTS.md section 5 and 7).",
+        "PolicyDocument": {
+          "Version": "2012-10-17",
+          "Statement": [
+            {
+              "Sid": "NoIamOrOrgOrAccountChanges",
+              "Effect": "Deny",
+              "Action": [
+                "iam:Create*",
+                "iam:Delete*",
+                "iam:Put*",
+                "iam:Attach*",
+                "iam:Detach*",
+                "iam:Update*",
+                "iam:Add*",
+                "iam:Remove*",
+                "iam:Set*",
+                "iam:Tag*",
+                "iam:Untag*",
+                "iam:Upload*",
+                "iam:Enable*",
+                "iam:Disable*",
+                "iam:Reset*",
+                "iam:Resync*",
+                "iam:Change*",
+                "iam:Deactivate*",
+                "iam:PassRole",
+                "organizations:Create*",
+                "organizations:Delete*",
+                "organizations:Update*",
+                "organizations:Invite*",
+                "organizations:Remove*",
+                "organizations:Move*",
+                "organizations:Leave*",
+                "organizations:Attach*",
+                "organizations:Detach*",
+                "organizations:Enable*",
+                "organizations:Disable*",
+                "organizations:Register*",
+                "organizations:Deregister*",
+                "organizations:Close*",
+                "organizations:Put*",
+                "organizations:Accept*",
+                "organizations:Cancel*",
+                "organizations:Decline*",
+                "organizations:Tag*",
+                "organizations:Untag*",
+                "account:Put*",
+                "account:Delete*",
+                "account:Enable*",
+                "account:Disable*",
+                "account:Close*",
+                "account:Accept*",
+                "account:Start*",
+                "sts:AssumeRole",
+                "sso:Create*",
+                "sso:Delete*",
+                "sso:Put*",
+                "sso:Attach*",
+                "sso:Detach*",
+                "sso:Update*",
+                "sso:Provision*"
+              ],
+              "Resource": "*"
+            },
+            {
+              "Sid": "NoBillingChanges",
+              "Effect": "Deny",
+              "Action": [
+                "aws-portal:Modify*",
+                "billing:Update*",
+                "billing:Put*",
+                "budgets:Modify*",
+                "budgets:Delete*"
+              ],
+              "Resource": "*"
+            },
+            {
+              "Sid": "NoExecutingChangesetsOrDeletingStacks",
+              "Effect": "Deny",
+              "Action": [
+                "cloudformation:ExecuteChangeSet",
+                "cloudformation:DeleteStack",
+                "cloudformation:UpdateStack",
+                "cloudformation:CreateStack",
+                "cloudformation:SetStackPolicy",
+                "cloudformation:CreateStackSet",
+                "cloudformation:UpdateTerminationProtection"
+              ],
+              "Resource": "*"
+            },
+            {
+              "Sid": "NoDeletingDataOrDisablingAudit",
+              "Effect": "Deny",
+              "Action": [
+                "s3:DeleteBucket",
+                "s3:DeleteObject*",
+                "s3:PutBucketPolicy",
+                "s3:DeleteBucketPolicy",
+                "s3:PutBucketPublicAccessBlock",
+                "s3:PutAccountPublicAccessBlock",
+                "dynamodb:DeleteTable",
+                "dynamodb:DeleteBackup",
+                "dynamodb:UpdateContinuousBackups",
+                "cloudtrail:StopLogging",
+                "cloudtrail:DeleteTrail",
+                "cloudtrail:UpdateTrail",
+                "cloudtrail:PutEventSelectors",
+                "logs:DeleteLogGroup",
+                "logs:PutRetentionPolicy",
+                "guardduty:Delete*",
+                "guardduty:Disassociate*",
+                "guardduty:Stop*",
+                "securityhub:Disable*",
+                "config:Delete*",
+                "config:Stop*",
+                "kms:ScheduleKeyDeletion",
+                "kms:DisableKey",
+                "kms:Decrypt",
+                "kms:CreateGrant"
+              ],
+              "Resource": "*"
+            },
+            {
+              "Sid": "NoSecretValuesAndNoOtherStage",
+              "Effect": "Deny",
+              "Action": [
+                "ssm:GetParameter*",
+                "ssm:PutParameter",
+                "ssm:DeleteParameter*",
+                "ssm:LabelParameterVersion",
+                "secretsmanager:GetSecretValue",
+                "secretsmanager:PutSecretValue",
+                "secretsmanager:DeleteSecret"
+              ],
+              "Resource": "*"
+            },
+            {
+              "Sid": "NoReadingReportObjects",
+              "Effect": "Deny",
+              "Action": [
+                "s3:GetObject*",
+                "s3:PutObject*"
+              ],
+              "Resource": {
+                "Fn::Sub": "arn:${AWS::Partition}:s3:::proofsec-reports-*/*"
+              }
+            },
+            {
+              "Sid": "NoSpendingServices",
+              "Effect": "Deny",
+              "Action": [
+                "ec2:RunInstances",
+                "ec2:CreateNatGateway",
+                "ec2:AllocateAddress",
+                "sagemaker:Create*",
+                "bedrock:CreateProvisionedModelThroughput",
+                "rds:Create*",
+                "redshift:Create*",
+                "elasticache:Create*",
+                "eks:Create*"
+              ],
+              "Resource": "*"
+            }
+          ]
+        },
+        "Path": "/proofsec/agents/"
+      },
+      "Metadata": {
+        "com.aws.cloudformation.Context": {
+          "why": "Reuse ADR-024 permissions with temporary SSO sessions.",
+          "must": [
+            "No IAM writes, secret/report access, or changeset execution by agents."
+          ]
+        }
+      }
+    },
+    "ReadBaselinePolicy": {
+      "Type": "AWS::IAM::ManagedPolicy",
+      "Properties": {
+        "ManagedPolicyName": {
+          "Fn::Sub": "${AWS::StackName}-readbaselinepolicy"
+        },
+        "Description": "Read-only view of the proofsec stack (metadata, logs, docs).",
+        "PolicyDocument": {
+          "Version": "2012-10-17",
+          "Statement": [
+            {
+              "Sid": "Identity",
+              "Effect": "Allow",
+              "Action": "sts:GetCallerIdentity",
+              "Resource": "*"
+            },
+            {
+              "Sid": "StackAndTemplateRead",
+              "Effect": "Allow",
+              "Action": [
+                "cloudformation:DescribeStacks",
+                "cloudformation:DescribeStackEvents",
+                "cloudformation:DescribeStackResource*",
+                "cloudformation:ListStackResources",
+                "cloudformation:GetTemplate",
+                "cloudformation:GetTemplateSummary",
+                "cloudformation:ListChangeSets",
+                "cloudformation:DescribeChangeSet",
+                "cloudformation:ListStacks",
+                "cloudformation:ValidateTemplate"
+              ],
+              "Resource": "*",
+              "Condition": {
+                "StringEquals": {
+                  "aws:RequestedRegion": {
+                    "Ref": "AppRegion"
+                  }
+                }
+              }
+            },
+            {
+              "Sid": "ResourceMetadataRead",
+              "Effect": "Allow",
+              "Action": [
+                "lambda:GetFunction*",
+                "lambda:ListFunctions",
+                "lambda:GetPolicy",
+                "lambda:ListEventSourceMappings",
+                "apigateway:GET",
+                "dynamodb:DescribeTable",
+                "dynamodb:DescribeTimeToLive",
+                "dynamodb:DescribeContinuousBackups",
+                "dynamodb:ListTables",
+                "s3:ListAllMyBuckets",
+                "s3:GetBucketLocation",
+                "s3:GetBucketPolicy",
+                "s3:GetBucketPublicAccessBlock",
+                "s3:GetEncryptionConfiguration",
+                "s3:GetBucketVersioning",
+                "s3:GetLifecycleConfiguration",
+                "sns:ListTopics",
+                "sns:GetTopicAttributes",
+                "sqs:ListQueues",
+                "sqs:GetQueueAttributes",
+                "events:Describe*",
+                "events:ListRules",
+                "cloudwatch:DescribeAlarms",
+                "cloudwatch:GetMetricData",
+                "cloudwatch:ListMetrics",
+                "budgets:ViewBudget",
+                "ssm:DescribeParameters",
+                "ce:GetCostAndUsage"
+              ],
+              "Resource": "*",
+              "Condition": {
+                "StringEquals": {
+                  "aws:RequestedRegion": [
+                    {
+                      "Ref": "AppRegion"
+                    },
+                    "us-east-1"
+                  ]
+                }
+              }
+            },
+            {
+              "Sid": "LogsRead",
+              "Effect": "Allow",
+              "Action": [
+                "logs:DescribeLogGroups",
+                "logs:DescribeLogStreams",
+                "logs:FilterLogEvents",
+                "logs:GetLogEvents",
+                "logs:StartQuery",
+                "logs:GetQueryResults",
+                "logs:StopQuery"
+              ],
+              "Resource": [
+                {
+                  "Fn::Sub": "arn:${AWS::Partition}:logs:${AppRegion}:${AWS::AccountId}:log-group:/proofsec/${Stage}/*"
+                },
+                {
+                  "Fn::Sub": "arn:${AWS::Partition}:logs:${AppRegion}:${AWS::AccountId}:log-group:/proofsec/${Stage}/*:log-stream:*"
+                },
+                {
+                  "Fn::Sub": "arn:${AWS::Partition}:logs:${AppRegion}:${AWS::AccountId}:log-group:/aws/lambda/proofsec-${Stage}-*"
+                },
+                {
+                  "Fn::Sub": "arn:${AWS::Partition}:logs:${AppRegion}:${AWS::AccountId}:log-group:/aws/lambda/proofsec-${Stage}-*:log-stream:*"
+                }
+              ]
+            },
+            {
+              "Sid": "LogGroupDiscovery",
+              "Effect": "Allow",
+              "Action": "logs:DescribeLogGroups",
+              "Resource": "*"
+            }
+          ]
+        },
+        "Path": "/proofsec/agents/"
+      },
+      "Metadata": {
+        "com.aws.cloudformation.Context": {
+          "why": "Reuse ADR-024 permissions with temporary SSO sessions.",
+          "must": [
+            "No IAM writes, secret/report access, or changeset execution by agents."
+          ]
+        }
+      }
+    },
+    "ClaudeCodeDeployReviewPolicy": {
+      "Type": "AWS::IAM::ManagedPolicy",
+      "Properties": {
+        "ManagedPolicyName": {
+          "Fn::Sub": "${AWS::StackName}-claudecodedeployreviewpolicy"
+        },
+        "Description": "sam deploy --no-execute-changeset on proofsec-<Stage> (plan only).",
+        "PolicyDocument": {
+          "Version": "2012-10-17",
+          "Statement": [
+            {
+              "Sid": "CreateReviewChangeSetOnDevStackOnly",
+              "Effect": "Allow",
+              "Action": [
+                "cloudformation:CreateChangeSet",
+                "cloudformation:DeleteChangeSet"
+              ],
+              "Resource": [
+                {
+                  "Fn::Sub": "arn:${AWS::Partition}:cloudformation:${AppRegion}:${AWS::AccountId}:stack/proofsec-${Stage}/*"
+                },
+                {
+                  "Fn::Sub": "arn:${AWS::Partition}:cloudformation:${AppRegion}:${AWS::AccountId}:stack/proofsec-${Stage}-*/*"
+                },
+                {
+                  "Fn::Sub": "arn:${AWS::Partition}:cloudformation:${AppRegion}:aws:transform/Serverless-2016-10-31"
+                }
+              ]
+            },
+            {
+              "Sid": "SamArtifactBucket",
+              "Effect": "Allow",
+              "Action": [
+                "s3:PutObject",
+                "s3:GetObject",
+                "s3:ListBucket",
+                "s3:GetBucketLocation"
+              ],
+              "Resource": [
+                {
+                  "Fn::Sub": "arn:${AWS::Partition}:s3:::aws-sam-cli-managed-default-*"
+                },
+                {
+                  "Fn::Sub": "arn:${AWS::Partition}:s3:::aws-sam-cli-managed-default-*/*"
+                }
+              ]
+            },
+            {
+              "Sid": "SamBucketBootstrapRead",
+              "Effect": "Allow",
+              "Action": "cloudformation:DescribeStacks",
+              "Resource": {
+                "Fn::Sub": "arn:${AWS::Partition}:cloudformation:${AppRegion}:${AWS::AccountId}:stack/aws-sam-cli-managed-default/*"
+              }
+            }
+          ]
+        },
+        "Path": "/proofsec/agents/"
+      },
+      "Metadata": {
+        "com.aws.cloudformation.Context": {
+          "why": "Reuse ADR-024 permissions with temporary SSO sessions.",
+          "must": [
+            "No IAM writes, secret/report access, or changeset execution by agents."
+          ]
+        }
+      }
+    },
+    "CodexPermissionSet": {
+      "Type": "AWS::SSO::PermissionSet",
+      "DependsOn": [
+        "GuardrailsPolicy",
+        "ReadBaselinePolicy"
+      ],
+      "Metadata": {
+        "com.aws.cloudformation.Context": {
+          "why": "Separate agent capabilities; existing administrator access remains human-controlled.",
+          "must": [
+            "Temporary sessions only; no persistent keys or administrator policy for agents."
+          ]
+        }
+      },
+      "Properties": {
+        "InstanceArn": {
+          "Ref": "InstanceArn"
+        },
+        "Name": "ProofSecCodexReadOnly",
+        "SessionDuration": "PT1H",
+        "Description": "ProofSec dev-only agent access; ADR-024 and ADR-029.",
+        "ManagedPolicies": [
+          {
+            "Fn::Sub": "arn:${AWS::Partition}:iam::aws:policy/AWSMCPSignInOAuthAccessPolicy"
+          }
+        ],
+        "CustomerManagedPolicyReferences": [
+          {
+            "Name": {
+              "Fn::Sub": "${AWS::StackName}-guardrailspolicy"
+            },
+            "Path": "/proofsec/agents/"
+          },
+          {
+            "Name": {
+              "Fn::Sub": "${AWS::StackName}-readbaselinepolicy"
+            },
+            "Path": "/proofsec/agents/"
+          }
+        ],
+        "Tags": [
+          {
+            "Key": "Project",
+            "Value": "proofsec"
+          },
+          {
+            "Key": "Environment",
+            "Value": "dev"
+          }
+        ]
+      }
+    },
+    "CodexAssignment": {
+      "Type": "AWS::SSO::Assignment",
+      "Condition": "HasCodex",
+      "Properties": {
+        "InstanceArn": {
+          "Ref": "InstanceArn"
+        },
+        "PermissionSetArn": {
+          "Fn::GetAtt": [
+            "CodexPermissionSet",
+            "PermissionSetArn"
+          ]
+        },
+        "PrincipalId": {
+          "Ref": "CodexPrincipalId"
+        },
+        "PrincipalType": "USER",
+        "TargetId": {
+          "Ref": "AWS::AccountId"
+        },
+        "TargetType": "AWS_ACCOUNT"
+      }
+    },
+    "ClaudePermissionSet": {
+      "Type": "AWS::SSO::PermissionSet",
+      "DependsOn": [
+        "GuardrailsPolicy",
+        "ReadBaselinePolicy",
+        "ClaudeCodeDeployReviewPolicy"
+      ],
+      "Metadata": {
+        "com.aws.cloudformation.Context": {
+          "why": "Separate agent capabilities; existing administrator access remains human-controlled.",
+          "must": [
+            "Temporary sessions only; no persistent keys or administrator policy for agents."
+          ]
+        }
+      },
+      "Properties": {
+        "InstanceArn": {
+          "Ref": "InstanceArn"
+        },
+        "Name": "ProofSecClaudePlan",
+        "SessionDuration": "PT1H",
+        "Description": "ProofSec dev-only agent access; ADR-024 and ADR-029.",
+        "ManagedPolicies": [
+          {
+            "Fn::Sub": "arn:${AWS::Partition}:iam::aws:policy/AWSMCPSignInOAuthAccessPolicy"
+          }
+        ],
+        "CustomerManagedPolicyReferences": [
+          {
+            "Name": {
+              "Fn::Sub": "${AWS::StackName}-guardrailspolicy"
+            },
+            "Path": "/proofsec/agents/"
+          },
+          {
+            "Name": {
+              "Fn::Sub": "${AWS::StackName}-readbaselinepolicy"
+            },
+            "Path": "/proofsec/agents/"
+          },
+          {
+            "Name": {
+              "Fn::Sub": "${AWS::StackName}-claudecodedeployreviewpolicy"
+            },
+            "Path": "/proofsec/agents/"
+          }
+        ],
+        "Tags": [
+          {
+            "Key": "Project",
+            "Value": "proofsec"
+          },
+          {
+            "Key": "Environment",
+            "Value": "dev"
+          }
+        ]
+      }
+    },
+    "ClaudeAssignment": {
+      "Type": "AWS::SSO::Assignment",
+      "Condition": "HasClaude",
+      "Properties": {
+        "InstanceArn": {
+          "Ref": "InstanceArn"
+        },
+        "PermissionSetArn": {
+          "Fn::GetAtt": [
+            "ClaudePermissionSet",
+            "PermissionSetArn"
+          ]
+        },
+        "PrincipalId": {
+          "Ref": "ClaudePrincipalId"
+        },
+        "PrincipalType": "USER",
+        "TargetId": {
+          "Ref": "AWS::AccountId"
+        },
+        "TargetType": "AWS_ACCOUNT"
+      }
+    },
+    "ReviewPermissionSet": {
+      "Type": "AWS::SSO::PermissionSet",
+      "DependsOn": [
+        "GuardrailsPolicy",
+        "ReadBaselinePolicy"
+      ],
+      "Metadata": {
+        "com.aws.cloudformation.Context": {
+          "why": "Separate agent capabilities; existing administrator access remains human-controlled.",
+          "must": [
+            "Temporary sessions only; no persistent keys or administrator policy for agents."
+          ]
+        }
+      },
+      "Properties": {
+        "InstanceArn": {
+          "Ref": "InstanceArn"
+        },
+        "Name": "ProofSecReviewReadOnly",
+        "SessionDuration": "PT1H",
+        "Description": "ProofSec dev-only agent access; ADR-024 and ADR-029.",
+        "ManagedPolicies": [
+          {
+            "Fn::Sub": "arn:${AWS::Partition}:iam::aws:policy/AWSMCPSignInOAuthAccessPolicy"
+          },
+          {
+            "Fn::Sub": "arn:${AWS::Partition}:iam::aws:policy/SecurityAudit"
+          }
+        ],
+        "CustomerManagedPolicyReferences": [
+          {
+            "Name": {
+              "Fn::Sub": "${AWS::StackName}-guardrailspolicy"
+            },
+            "Path": "/proofsec/agents/"
+          },
+          {
+            "Name": {
+              "Fn::Sub": "${AWS::StackName}-readbaselinepolicy"
+            },
+            "Path": "/proofsec/agents/"
+          }
+        ],
+        "Tags": [
+          {
+            "Key": "Project",
+            "Value": "proofsec"
+          },
+          {
+            "Key": "Environment",
+            "Value": "dev"
+          }
+        ]
+      }
+    },
+    "ReviewAssignment": {
+      "Type": "AWS::SSO::Assignment",
+      "Condition": "HasReview",
+      "Properties": {
+        "InstanceArn": {
+          "Ref": "InstanceArn"
+        },
+        "PermissionSetArn": {
+          "Fn::GetAtt": [
+            "ReviewPermissionSet",
+            "PermissionSetArn"
+          ]
+        },
+        "PrincipalId": {
+          "Ref": "ReviewPrincipalId"
+        },
+        "PrincipalType": "USER",
+        "TargetId": {
+          "Ref": "AWS::AccountId"
+        },
+        "TargetType": "AWS_ACCOUNT"
+      }
+    }
+  },
+  "Outputs": {
+    "CodexPermissionSet": {
+      "Description": "Permission set ARN; human configures its dedicated SSO profile.",
+      "Value": {
+        "Fn::GetAtt": [
+          "CodexPermissionSet",
+          "PermissionSetArn"
+        ]
+      }
+    },
+    "ClaudePermissionSet": {
+      "Description": "Permission set ARN; human configures its dedicated SSO profile.",
+      "Value": {
+        "Fn::GetAtt": [
+          "ClaudePermissionSet",
+          "PermissionSetArn"
+        ]
+      }
+    },
+    "ReviewPermissionSet": {
+      "Description": "Permission set ARN; human configures its dedicated SSO profile.",
+      "Value": {
+        "Fn::GetAtt": [
+          "ReviewPermissionSet",
+          "PermissionSetArn"
+        ]
+      }
+    }
+  }
+}

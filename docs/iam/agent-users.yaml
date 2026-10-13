@@ -83,7 +83,6 @@ Resources:
               - account:Close*
               - account:Accept*
               - account:Start*
-              - account:Cancel*
               - sts:AssumeRole
               - sso:Create*
               - sso:Delete*
