@@ -1,0 +1,6 @@
+{
+  "wallet": "7BExFwxWHb7hH2E7cdajaNm8gZvyMR3uFd2gsM5wVoWr",
+  "publicKey": "eGZ2UKEG56SvB8ivdN8ruBfIMlrL/+lCenYMyhM9Bpk=",
+  "message": "ProofSec: publish encryption key\nWallet: 7BExFwxWHb7hH2E7cdajaNm8gZvyMR3uFd2gsM5wVoWr\nKey: eGZ2UKEG56SvB8ivdN8ruBfIMlrL/+lCenYMyhM9Bpk=\nThis signature does not authorize any transaction.",
+  "signature": "4Kfys5gLyF2qjjMHrdQ1V8NDbD5uzMwDyubR7bwweY3UNzYrMT2B3rqWtDX5tFVtcSMzSeybGbX1P6jpPW9JfKhw"
+}

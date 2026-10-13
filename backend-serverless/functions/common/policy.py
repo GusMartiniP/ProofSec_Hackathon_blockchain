@@ -10,6 +10,20 @@ import os
 
 MAX_AGENT_SPENDING_LIMIT_USDC = float(os.environ.get("MAX_AGENT_SPENDING_LIMIT_USDC", "500"))
 
+
+def parse_budget_scale(raw) -> float:
+    """Fator (0, 1] aplicado à tabela de orçamentos. Só REDUZ: um valor inválido, zero, negativo ou
+    acima de 1 volta para 1, então configuração errada nunca aumenta quanto o agente propõe.
+    Existe para o dev/devnet, onde o USDC do faucet é pouco (ver ADR-026); prod exige 1 no template."""
+    try:
+        scale = float(raw)
+    except (TypeError, ValueError):
+        return 1.0
+    return scale if 0 < scale <= 1 else 1.0
+
+
+AGENT_BUDGET_SCALE = parse_budget_scale(os.environ.get("AGENT_BUDGET_SCALE", "1"))
+
 # Severidade normalizada → orçamento sugerido (USDC) e prazo (dias)
 BUDGET_TABLE = {
     "LOW": (150.0, 7),
@@ -41,7 +55,7 @@ def normalize_severity(value) -> str:
 def recommend(severity) -> dict:
     sev = normalize_severity(severity)
     budget, days = BUDGET_TABLE[sev]
-    return {"severity": sev, "budgetUsdc": budget, "deadlineDays": days}
+    return {"severity": sev, "budgetUsdc": round(budget * AGENT_BUDGET_SCALE, 6), "deadlineDays": days}
 
 
 def decide(budget_usdc: float, limit: float | None = None) -> dict:

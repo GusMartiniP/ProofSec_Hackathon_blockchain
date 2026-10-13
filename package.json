@@ -11,7 +11,7 @@
     "agent:executor": "npm --prefix agent run executor",
     "idl:preview": "python contracts/scripts/gen_idl_preview.py",
     "test:agent": "npm --prefix agent test",
-    "test:meta": "cd agent && npx tsx --test ../tests/meta-integrity.test.ts ../tests/key-binding.test.ts ../tests/role.test.ts ../tests/csp.test.ts",
+    "test:meta": "cd agent && npx tsx --test ../tests/meta-integrity.test.ts ../tests/key-binding.test.ts ../tests/key-versions.test.ts ../tests/role.test.ts ../tests/csp.test.ts",
     "build:agent-lambda": "npm --prefix agent run build:lambda",
     "check:template": "python backend-serverless/scripts/check_template.py backend-serverless/template.yaml --functions-dir backend-serverless/functions",
     "check:template:agent": "python backend-serverless/scripts/check_template.py agent/template.yaml",

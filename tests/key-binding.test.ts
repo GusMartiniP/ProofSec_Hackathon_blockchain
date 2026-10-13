@@ -6,9 +6,12 @@
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { describe, it } from "node:test";
-import { keyBindingMessage, verifyKeyBinding } from "../frontend/src/lib/keybinding";
+import { keyBindingMessage, legacyKeyBindingMessage, verifyKeyBinding } from "../frontend/src/lib/keybinding";
 
-const f = JSON.parse(readFileSync(new URL("./fixtures/key-binding.json", import.meta.url), "utf8"));
+// `key-binding.json`: assinada com a mensagem antiga (português), como as chaves já publicadas.
+// `key-binding-en.json`: assinada com a mensagem atual (inglês), produzida pelo backend Python.
+const legacy = JSON.parse(readFileSync(new URL("./fixtures/key-binding.json", import.meta.url), "utf8"));
+const f = JSON.parse(readFileSync(new URL("./fixtures/key-binding-en.json", import.meta.url), "utf8"));
 
 describe("vínculo carteira ↔ chave de criptografia", () => {
   it("a mensagem é idêntica à do backend", () => {
@@ -17,6 +20,11 @@ describe("vínculo carteira ↔ chave de criptografia", () => {
 
   it("aceita a assinatura gerada pelo backend/carteira", () => {
     assert.equal(verifyKeyBinding(f.wallet, f.publicKey, f.signature), true);
+  });
+
+  it("chaves publicadas com a mensagem antiga (português) continuam válidas", () => {
+    assert.equal(legacyKeyBindingMessage(legacy.wallet, legacy.publicKey), legacy.message);
+    assert.equal(verifyKeyBinding(legacy.wallet, legacy.publicKey, legacy.signature), true);
   });
 
   it("recusa chave trocada, carteira trocada, assinatura ausente, corrompida ou enorme", () => {

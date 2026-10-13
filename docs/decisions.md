@@ -360,3 +360,38 @@ resolver tudo). Qualquer uma pode ser revista por novo ADR.
   `agent/AGENTS.md`, `backend-serverless/AGENTS.md`, README, runbook e `CONTEXT_FOR_CLAUDE.md`. Os achados
   históricos de `security-review.md` mantêm "Dono: Kiro" (registro de quem corrigiu na época). **Pendente,
   ação humana:** criar os usuários IAM (`docs/iam/agent-users.yaml`) e trocar o perfil do MCP da AWS.
+
+## ADR-026 — Escala dos orçamentos do agente no dev (`AgentBudgetScale`) · Aceita
+
+- **Decisão:** `policy.py` aplica um fator `AGENT_BUDGET_SCALE` (0 < fator ≤ 1) à `BUDGET_TABLE`. Parâmetro do
+  template `AgentBudgetScale` (padrão `'1'`); no dev o `samconfig.toml` usa `0.01` e teto autônomo `5`
+  (propostas de 1,5 / 3,5 / 7,5 / 15 USDC). A tabela e a decisão continuam determinísticas, sem LLM (INV-3).
+- **Motivo:** a tabela original (150 a 1500 USDC) é maior que o USDC que o faucet da Circle entrega (10 por
+  pedido), então a demo do agente na devnet nunca conseguia financiar uma proposta.
+- **Alternativas:** (a) pedir mais USDC à Circle: não escala e não é reproduzível; (b) editar a tabela no código
+  só para a demo: mistura demo e produção; (c) deixar o agente só narrado (estado anterior).
+- **Segurança:** o fator só reduz. `parse_budget_scale` devolve 1 para vazio, texto, zero, negativo, `nan`/`inf` ou
+  acima de 1, então erro de configuração nunca aumenta o gasto proposto. O limite que vale segue sendo a
+  `AgentPolicy` on-chain. A `Rule` `NonDevHardening` exige `AgentBudgetScale = 1` fora do dev.
+- **Operacional:** exige novo deploy do backend dev (changeset revisado e executado por humano, ADR-024).
+  Propostas já salvas mantêm o valor antigo; só as novas usam a escala.
+- **Verificação:** `test_budget_scale_only_ever_reduces`, `test_recommend_applies_the_scale`, `AgentBudgetScaleTest`.
+
+## ADR-027 — Chave de criptografia v3 e vínculo de chave com texto em inglês · Aceita
+
+- **Decisão:** a chave de relatórios passa a ser derivada da mensagem **v3** (SIWS com statement em inglês); a
+  mensagem de vínculo carteira↔chave (PS-38) também passa para inglês. As antigas continuam existindo só para
+  verificar e decifrar: v1/v2 derivam chaves legadas e a verificação do vínculo aceita as duas mensagens (frontend
+  `verifyKeyBinding` e backend `verify_key_binding`).
+- **Motivo:** o texto é o que a carteira mostra no popup. Com a UI em inglês, os dois popups em português
+  atrapalhavam a demo e a leitura por quem não fala português.
+- **Alternativas:** (a) manter em português (estado anterior); (b) trocar o texto da v2 no lugar: mudaria a
+  chave de quem já ativou e impediria abrir relatórios cifrados.
+- **Segurança:** v1/v2 ficam **congeladas** em `frontend/src/lib/keymessages.ts` com teste byte a byte
+  (`tests/key-versions.test.ts`), porque a assinatura é a semente da chave. Chaves publicadas com a mensagem
+  antiga seguem válidas (teste `test_encryption_key_accepts_the_legacy_portuguese_binding`). A chave segue por
+  origem (localhost e Amplify geram chaves diferentes).
+- **Operacional:** cada carteira republica a chave v3 na próxima vez que usar "Activate encryption" (duas
+  assinaturas). Relatórios antigos abrem pela chave legada (a carteira assina a mensagem antiga). Se cliente e
+  pesquisador estiverem em versões diferentes, o app tenta as versões de chave até achar a que o envelope usa.
+  Exige novo build do frontend e deploy do backend (a verificação do vínculo).

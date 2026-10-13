@@ -29,7 +29,8 @@ resolve_s3 = true
 # e um pacote trocado no bucket entre a revisao do changeset e a execucao seria reaproveitado.
 force_upload = true
 # region = "us-east-1"   # sem isto, vale a região do perfil da AWS CLI
-parameter_overrides = "Stage=\"dev\""
+# ADR-026: no dev o USDC do faucet e pouco; a tabela do agente vira 1.5/3.5/7.5/15 USDC e o teto autonomo 5.
+parameter_overrides = "Stage=\"dev\" AgentBudgetScale=\"0.01\" MaxAgentSpendingLimitUsdc=\"5\""
 tags = "Project=\"proofsec\" Environment=\"dev\" ManagedBy=\"sam\" Owner=\"engineering\""
 
 [prod.global.parameters]

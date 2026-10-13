@@ -11,6 +11,16 @@ from .ed25519 import verify
 
 def key_binding_message(wallet: str, public_key_b64: str) -> str:
     return (
+        "ProofSec: publish encryption key\n"
+        f"Wallet: {wallet}\n"
+        f"Key: {public_key_b64}\n"
+        "This signature does not authorize any transaction."
+    )
+
+
+def legacy_key_binding_message(wallet: str, public_key_b64: str) -> str:
+    """Mensagem antiga (português): chaves já publicadas foram assinadas com ela e seguem válidas."""
+    return (
         "ProofSec: publicar chave de criptografia\n"
         f"Carteira: {wallet}\n"
         f"Chave: {public_key_b64}\n"
@@ -20,6 +30,10 @@ def key_binding_message(wallet: str, public_key_b64: str) -> str:
 
 def verify_key_binding(wallet: str, public_key_b64: str, signature: bytes) -> bool:
     try:
-        return verify(b58decode(wallet), key_binding_message(wallet, public_key_b64).encode("utf-8"), signature)
+        pub = b58decode(wallet)
+        return any(
+            verify(pub, build(wallet, public_key_b64).encode("utf-8"), signature)
+            for build in (key_binding_message, legacy_key_binding_message)
+        )
     except ValueError:
         return False

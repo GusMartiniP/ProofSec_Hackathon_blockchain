@@ -18,37 +18,13 @@
  */
 import nacl from "tweetnacl";
 import { CLUSTER } from "./config";
+import { LEGACY_V1_MESSAGE, keyMessageV2, keyMessageV3 } from "./keymessages";
 import { base64ToBytes, bytesToBase64, sha256, sha256Hex, toArrayBuffer } from "./encoding";
 
-export type KeyVersion = 1 | 2;
-export const CURRENT_KEY_VERSION: KeyVersion = 2;
-
-/** Mensagem antiga (sem domínio). Mantida só para decifrar relatórios v1. */
-const LEGACY_V1_MESSAGE =
-  "ProofSec encryption key v1\n\n" +
-  "Esta assinatura gera, no seu navegador, a chave usada para cifrar e abrir relatórios de segurança.\n" +
-  "Ela não autoriza nenhuma transação.";
-
-/**
- * Mensagem v2 no formato SIWS. Tudo fixo (inclusive nonce e data) para que a
- * assinatura, e portanto a chave, seja sempre a mesma para (carteira, origem).
- * O statement é ASCII e sem quebras de linha, como pede a ABNF do SIWS.
- */
-export function keyMessageV2(wallet: string, host: string, origin: string, chainId: string = CLUSTER): string {
-  return (
-    `${host} wants you to sign in with your Solana account:\n` +
-    `${wallet}\n` +
-    "\n" +
-    `ProofSec: gerar a chave de criptografia de relatorios (v2). Assine somente em ${origin}. ` +
-    "Esta assinatura nao autoriza nenhuma transacao.\n" +
-    "\n" +
-    `URI: ${origin}\n` +
-    "Version: 1\n" +
-    `Chain ID: ${chainId}\n` +
-    "Nonce: proofsecencryptionkeyv2\n" +
-    "Issued At: 2026-01-01T00:00:00.000Z"
-  );
-}
+export type KeyVersion = 1 | 2 | 3;
+export const CURRENT_KEY_VERSION: KeyVersion = 3;
+/** Versões legadas continuam derivando a chave, só para abrir relatórios já cifrados com elas. */
+export const KEY_VERSIONS_NEWEST_FIRST: KeyVersion[] = [3, 2, 1];
 
 export interface EncryptionKeypair {
   publicKey: Uint8Array;
@@ -68,7 +44,9 @@ export async function deriveEncryptionKeypair(
   const cacheKey = `${version}|${wallet}|${origin}`;
   const cached = cache.get(cacheKey);
   if (cached) return cached;
-  const message = version === 2 ? keyMessageV2(wallet, window.location.host, origin) : LEGACY_V1_MESSAGE;
+  const host = window.location.host;
+  const message =
+    version === 3 ? keyMessageV3(wallet, host, origin, CLUSTER) : version === 2 ? keyMessageV2(wallet, host, origin, CLUSTER) : LEGACY_V1_MESSAGE;
   const signature = await signMessage(new TextEncoder().encode(message));
   const seed = await sha256(signature);
   const kp = nacl.box.keyPair.fromSecretKey(seed);
@@ -144,10 +122,20 @@ function parseEnvelope(blob: Uint8Array): Envelope {
   return env;
 }
 
-/** Versão de chave com que o envelope foi cifrado (decide se precisa da chave legada). */
+/** Versão de chave com que o envelope foi cifrado (decide qual chave tentar primeiro). */
 export function envelopeKeyVersion(blob: Uint8Array): KeyVersion {
-  return parseEnvelope(blob).keyVersion === 2 ? 2 : 1;
+  const v = parseEnvelope(blob).keyVersion;
+  return v === 3 ? 3 : v === 2 ? 2 : 1;
 }
+
+/** Ordem de tentativa para abrir um envelope: a versão declarada nele e depois as demais. */
+export function keyVersionsToTry(blob: Uint8Array): KeyVersion[] {
+  const first = envelopeKeyVersion(blob);
+  return [first, ...KEY_VERSIONS_NEWEST_FIRST.filter((v) => v !== first)];
+}
+
+/** Erro de "não sou destinatário": vale tentar outra versão de chave. */
+export const NOT_A_RECIPIENT = "this report was not encrypted to your key";
 
 export async function decryptReport(
   blob: Uint8Array,
@@ -155,7 +143,7 @@ export async function decryptReport(
 ): Promise<{ file: Blob; fileName: string; plainSha256: string }> {
   const env = parseEnvelope(blob);
   const mine = env.recipients.find((r) => r.recipientPub === keypair.publicKeyB64);
-  if (!mine) throw new Error("this report was not encrypted to your key");
+  if (!mine) throw new Error(NOT_A_RECIPIENT);
   const dataKey = nacl.box.open(
     base64ToBytes(mine.wrappedKey),
     base64ToBytes(mine.nonce),

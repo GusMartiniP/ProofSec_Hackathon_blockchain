@@ -37,5 +37,20 @@ class ApiAccessLogDriftTest(unittest.TestCase):
         self.assertNotIn("DestinationArn: !GetAtt ApiAccessLogGroup.Arn", block)
 
 
+class AgentBudgetScaleTest(unittest.TestCase):
+    """ADR-026: a escala só existe para o dev; fora dele o template exige 1."""
+
+    def test_parameter_is_wired_to_both_agent_functions(self):
+        self.assertEqual(TEMPLATE.count("AGENT_BUDGET_SCALE: !Ref AgentBudgetScale"), 2)
+
+    def test_non_dev_stages_must_use_scale_one(self):
+        rule = re.search(r"^  NonDevHardening:\n(.*?)(?=^\w)", TEMPLATE, re.S | re.M).group(1)
+        self.assertIn("!Equals [!Ref AgentBudgetScale, '1']", rule)
+
+    def test_only_reductions_are_accepted(self):
+        param = re.search(r"^  AgentBudgetScale:\n(.*?)(?=^  \w|\Z)", TEMPLATE, re.S | re.M).group(1)
+        self.assertIn("AllowedPattern: '^(1|0\\.[0-9]{1,3})$'", param)
+
+
 if __name__ == "__main__":
     unittest.main()

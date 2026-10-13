@@ -23,3 +23,4 @@ agent/agent-keypair.json
 *-keypair.json
 nvidia_api.txt
 *api*.txt
+frontend/*.zip

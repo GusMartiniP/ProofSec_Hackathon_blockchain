@@ -7,7 +7,14 @@ import { useProofSec, type JobView } from "@/hooks/useProofSec";
 import { api } from "@/lib/api";
 import { HAS_API, RECOVERY_GRACE_SECONDS } from "@/lib/config";
 import { baseToUsdc, sha256Hex, toArrayBuffer } from "@/lib/encoding";
-import { decryptReport, deriveEncryptionKeypair, encryptReport, envelopeKeyVersion } from "@/lib/evidence";
+import {
+  CURRENT_KEY_VERSION,
+  NOT_A_RECIPIENT,
+  decryptReport,
+  deriveEncryptionKeypair,
+  encryptReport,
+  keyVersionsToTry,
+} from "@/lib/evidence";
 import {
   acceptJob,
   approveAndRelease,
@@ -299,11 +306,22 @@ function useReportOpener(job: JobView) {
     const blob = new Uint8Array(await res.arrayBuffer());
     if ((await sha256Hex(blob)) !== job.evidenceSha256) throw new Error("hash differs from the one recorded on-chain");
     if (onBytes && !(await onBytes(blob))) return null;
-    const kp =
-      envelopeKeyVersion(blob) === 2
-        ? await ensureEncryptionKey()
-        : await deriveEncryptionKeypair(wallet!, signMessage!, 1); // old report (v1 key)
-    return decryptReport(blob, kp);
+    // Tenta a versão de chave declarada no envelope e depois as demais (carteiras migradas em momentos
+    // diferentes). Cada derivação é uma assinatura na carteira, então só avança se não for destinatário.
+    let lastError: unknown = new Error(NOT_A_RECIPIENT);
+    for (const version of keyVersionsToTry(blob)) {
+      try {
+        const kp =
+          version === CURRENT_KEY_VERSION
+            ? await ensureEncryptionKey()
+            : await deriveEncryptionKeypair(wallet!, signMessage!, version); // legacy key, only to open old reports
+        return await decryptReport(blob, kp);
+      } catch (e: any) {
+        lastError = e;
+        if (e?.message !== NOT_A_RECIPIENT) throw e;
+      }
+    }
+    throw lastError;
   };
 }
 

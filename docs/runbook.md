@@ -91,6 +91,31 @@ Nunca usar credenciais ou carteiras de produção em dev.
    evidência → aprovar → conferir no explorer. O árbitro precisa clicar em "Ativar
    criptografia" uma vez para receber relatórios cifrados.
 
+## 2.1 Demo no devnet (pitch)
+
+Checklist antes de subir ao palco (carteira Phantom em **Testnet Mode, Solana Devnet**; abra o site do Amplify,
+nunca `localhost`, que o CORS e o SIWS recusam):
+
+1. Cada carteira (empresa, pesquisador e, se for demonstrar disputa, a do árbitro): "Sign in (SIWS)" e
+   "Activate encryption" (duas assinaturas; ADR-027). O árbitro precisa ativar **antes** de o pesquisador enviar
+   o relatório, senão o relatório sai sem a chave dele.
+2. Pré-crie jobs em estados diferentes (o fluxo todo não cabe em 3 min): um em `EVIDENCE_SUBMITTED` e outro com a
+   janela de revisão já vencida (revisão de 0,02 h = 72 s), para mostrar aprovar e "Claim payment".
+3. Agente (ADR-026: orçamentos de 1,5 / 3,5 / 7,5 / 15 USDC no dev): ative a política no painel (pubkey do agente,
+   allowance) e rode o executor localmente. Chave do agente: `npm run keygen` e ~0,1 SOL de devnet.
+
+   ```
+   aws ssm get-parameter --profile ProofSec --region us-east-1 --name /proofsec/dev/agent-api-key --with-decryption --query Parameter.Value --output text
+   API_URL=<ApiEndpoint> AGENT_API_KEY=<valor acima> npm run agent:executor
+   ```
+
+   `Simular alerta` com severidade 5 (MEDIUM, 3,5 USDC) fica `AUTO_APPROVED` e o executor abre o escrow; com
+   severidade 8 (HIGH, 7,5 USDC) passa o teto de 5 e vira `NEEDS_HUMAN` (assinatura na Phantom).
+4. RPC: o público da devnet tem limite de requisições. Com um RPC dedicado, defina `NEXT_PUBLIC_RPC_URL` no build
+   **e** atualize o `connect-src` (https e wss do host) em `frontend/customHttp.yml`, colando-o em
+   Amplify > Custom headers. O `customHttp.yml` do repositório (PS-47, sem `*.amazonaws.com`) ainda precisa ser
+   republicado no Amplify: o cabeçalho no ar ainda libera `https://*.amazonaws.com`.
+
 ## 3. Resposta a incidentes
 
 Fluxo: detecção → contenção → investigação → erradicação → recuperação → revisão

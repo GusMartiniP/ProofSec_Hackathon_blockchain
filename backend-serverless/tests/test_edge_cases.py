@@ -189,6 +189,26 @@ class TestSeverityMapping(unittest.TestCase):
         for v in (None, "", "weird", [], {}):
             self.assertIn(policy.normalize_severity(v), policy.BUDGET_TABLE)
 
+    def test_budget_scale_only_ever_reduces(self):
+        """ADR-026: AGENT_BUDGET_SCALE reduz a tabela (dev); valor inválido ou acima de 1 vira 1."""
+        self.assertEqual(policy.parse_budget_scale("0.01"), 0.01)
+        self.assertEqual(policy.parse_budget_scale(1), 1.0)
+        for bad in (None, "", "abc", "0", "-1", "1.5", "10", "nan", "inf", [], {}):
+            self.assertEqual(policy.parse_budget_scale(bad), 1.0, bad)
+
+    def test_recommend_applies_the_scale(self):
+        saved = policy.AGENT_BUDGET_SCALE
+        try:
+            policy.AGENT_BUDGET_SCALE = 0.01
+            got = {s: policy.recommend(s)["budgetUsdc"] for s in ("LOW", "MEDIUM", "HIGH", "CRITICAL")}
+            self.assertEqual(got, {"LOW": 1.5, "MEDIUM": 3.5, "HIGH": 7.5, "CRITICAL": 15.0})
+            # com o teto do dev (5): MEDIUM segue autônomo, HIGH exige humano
+            self.assertTrue(policy.decide(got["MEDIUM"], 5.0)["autonomous"])
+            self.assertFalse(policy.decide(got["HIGH"], 5.0)["autonomous"])
+        finally:
+            policy.AGENT_BUDGET_SCALE = saved
+        self.assertEqual(policy.recommend("MEDIUM")["budgetUsdc"], 350.0)
+
     def test_decide_boundary(self):
         self.assertTrue(policy.decide(500.0, 500.0)["autonomous"])
         self.assertFalse(policy.decide(500.01, 500.0)["autonomous"])
@@ -578,6 +598,16 @@ class TestReview25to31Regressions(Base):
         self.assertEqual(self._put_key(wallet, {"publicKey": pub, "signature": good})["statusCode"], 200)
         got = body_of(users.get_encryption_key({"pathParameters": {"wallet": wallet}}, None))
         self.assertEqual((got["publicKey"], got["signature"]), (pub, good))
+
+    def test_encryption_key_accepts_the_legacy_portuguese_binding(self):
+        """Chaves publicadas antes da mensagem em inglês foram assinadas com a antiga e seguem válidas."""
+        import os as _os
+        from common.keybinding import legacy_key_binding_message
+
+        sk, _, wallet = keypair()
+        pub = base64.b64encode(_os.urandom(32)).decode()
+        legacy = b58.b58encode(sk.sign(legacy_key_binding_message(wallet, pub).encode()))
+        self.assertEqual(self._put_key(wallet, {"publicKey": pub, "signature": legacy})["statusCode"], 200)
 
     def test_legacy_unsigned_key_is_served_without_signature(self):
         import users

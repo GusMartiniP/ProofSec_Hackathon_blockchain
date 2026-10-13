@@ -7,6 +7,16 @@ import nacl from "tweetnacl";
  */
 export function keyBindingMessage(wallet: string, publicKeyB64: string): string {
   return (
+    "ProofSec: publish encryption key\n" +
+    `Wallet: ${wallet}\n` +
+    `Key: ${publicKeyB64}\n` +
+    "This signature does not authorize any transaction."
+  );
+}
+
+/** Mensagem antiga (português). Chaves já publicadas foram assinadas com ela e continuam válidas. */
+export function legacyKeyBindingMessage(wallet: string, publicKeyB64: string): string {
+  return (
     "ProofSec: publicar chave de criptografia\n" +
     `Carteira: ${wallet}\n` +
     `Chave: ${publicKeyB64}\n` +
@@ -19,10 +29,11 @@ export function keyBindingMessage(wallet: string, publicKeyB64: string): string 
  */
 export function verifyKeyBinding(wallet: string, publicKeyB64: string, signature: string): boolean {
   try {
-    const message = new TextEncoder().encode(keyBindingMessage(wallet, publicKeyB64));
     const sigBytes = bs58.decode(signature);
     const pubkeyBytes = bs58.decode(wallet);
-    return nacl.sign.detached.verify(message, sigBytes, pubkeyBytes);
+    return [keyBindingMessage, legacyKeyBindingMessage].some((build) =>
+      nacl.sign.detached.verify(new TextEncoder().encode(build(wallet, publicKeyB64)), sigBytes, pubkeyBytes)
+    );
   } catch {
     return false;
   }
